@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>IRIS - Real-time Collaboration, Groups & Live Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-border: #334155;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --online: #22c55e;
+      --offline: #64748b;
+      --bubble-me: #6366f1;
+      --bubble-other: #334155;
+      --accent: #ec4899;
+      --canvas-bg: #1e293b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .hidden { display: none !important; }
+
+    /* Auth screen */
+    .auth-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .auth-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    .auth-card h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; text-align: center; }
+    .auth-card p.subtitle { color: var(--text-muted); font-size: 0.95rem; text-align: center; margin-bottom: 2rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; }
+    .form-group input {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+    .btn {
+      width: 100%;
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .auth-toggle { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted); }
+    .auth-toggle a { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+
+    /* App Screen */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    /* Left Sidebar */
+    .sidebar-left {
+      width: 330px;
+      background: #111827;
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+    }
+    .my-profile-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .my-profile-header img {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+    }
+    .my-info { flex: 1; overflow: hidden; }
+    .my-info .name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .my-info .tag { font-size: 0.8rem; color: var(--text-muted); }
+    .btn-logout { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+
+    .users-scroll { flex: 1; overflow-y: auto; padding: 1rem; }
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .btn-create-group {
+      padding: 0.25rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-create-group:hover { opacity: 0.9; }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.7rem 0.8rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 0.3rem;
+    }
+    .user-item:hover { background: #1e293b; }
+    .user-item.active { background: #312e81; }
+    .avatar-wrapper { position: relative; }
+    .avatar-wrapper img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+    .group-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      position: absolute;
+      bottom: 1px;
+      right: 1px;
+      border: 2px solid #111827;
+    }
+    .status-dot.online { background: var(--online); }
+    .status-dot.offline { background: var(--offline); }
+    .user-meta { flex: 1; overflow: hidden; }
+    .user-meta .u-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-action-small {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Main Chat Window */
+    .chat-window {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      position: relative;
+    }
+    .chat-header {
+      padding: 1rem 1.5rem;
+      background: #1e293b;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      z-index: 10;
+    }
+    .chat-header img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    
+    .btn-draw-together {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    .btn-draw-together:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
+    }
+    .btn-draw-together.active {
+      background: linear-gradient(135deg, #ec4899, #ef4444);
+    }
+
+    .chat-content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .message-bubble {
+      max-width: 65%;
+      padding: 0.8rem 1.1rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .message-bubble.me {
+      align-self: flex-end;
+      background: var(--bubble-me);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message-bubble.other {
+      align-self: flex-start;
+      background: var(--bubble-other);
+      color: #f1f5f9;
+      border-bottom-left-radius: 4px;
+    }
+    .group-msg-sender {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #818cf8;
+      margin-bottom: 0.25rem;
+    }
+    .message-bubble img.chat-drawing-img {
+      max-width: 280px;
+      border-radius: 8px;
+      margin-top: 0.4rem;
+      display: block;
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+    }
+
+    .chat-input-bar {
+      padding: 1rem 1.5rem;
+      background: #1e293b;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      gap: 0.8rem;
+      z-index: 10;
+    }
+    .chat-input-bar input {
+      flex: 1;
+      padding: 0.85rem 1.2rem;
+      border-radius: 24px;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .chat-input-bar input:focus { border-color: var(--primary); }
+    .chat-input-bar button {
+      padding: 0.85rem 1.5rem;
+      border-radius: 24px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ========================================= */
+    /* LIVE COLLABORATIVE DRAWING CANVAS MODULE  */
+    /* ========================================= */
+    .live-canvas-container {
+      height: 380px;
+      background: var(--canvas-bg);
+      border-bottom: 2px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      user-select: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      z-index: 5;
+    }
+    .canvas-toolbar {
+      padding: 0.5rem 1rem;
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+    .tool-group, .color-group, .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .tool-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid var(--card-border);
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover { background: #334155; color: #fff; }
+    .tool-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+    }
+
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #334155;
+      transition: transform 0.2s;
+    }
+    .color-swatch:hover { transform: scale(1.15); }
+    .color-swatch.active { border-color: #fff; transform: scale(1.2); }
+    #customColorPicker {
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .size-slider-box {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .size-slider-box input[type="range"] {
+      width: 70px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    .action-btn {
+      background: #334155;
+      color: #f1f5f9;
+      border: none;
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .action-btn:hover { background: #475569; }
+    .action-btn.send-drawing {
+      background: #10b981;
+      color: #fff;
+    }
+    .action-btn.send-drawing:hover { background: #059669; }
+
+    .canvas-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+      background: #0f172a;
+    }
+    #paintCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Multi-user live cursor badges */
+    .remote-cursor {
+      position: absolute;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transform: translate(-4px, -4px);
+      z-index: 100;
+      transition: left 0.04s linear, top 0.04s linear;
+    }
+    .remote-cursor-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ec4899;
+      box-shadow: 0 0 8px #ec4899;
+    }
+    .remote-cursor-label {
+      background: #ec4899;
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Modal Backdrop and Card */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      width: 90%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .modal-header h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+    .friends-checklist {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      background: #0f172a;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .friend-check-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.4rem 0.5rem;
+      border-radius: 8px;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .friend-check-item:hover {
+      background: #1e293b;
+    }
+    .friend-check-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+    .friend-check-item img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.8rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+    .btn-secondary {
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      background: #334155;
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .btn-primary-small {
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .action-btn.btn-ai {
+      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+    }
+    .action-btn.btn-ai:hover {
+      background: linear-gradient(135deg, #7c3aed, #0891b2);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.6);
+    }
+
+    /* AI Modal Specifics */
+    .ai-modal-card {
+      max-width: 640px !important;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .ai-focus-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .ai-pill {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 20px;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .ai-pill:hover {
+      background: #334155;
+      color: #fff;
+    }
+    .ai-pill.active {
+      background: #8b5cf6;
+      border-color: #8b5cf6;
+      color: #fff;
+    }
+    .ai-loading-box {
+      padding: 2.5rem 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .ai-spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(139, 92, 246, 0.2);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: aiSpin 0.9s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes aiSpin {
+      to { transform: rotate(360deg); }
+    }
+    .ai-results-scroll {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 380px;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+    }
+    .ai-provider-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #a78bfa;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    .ai-markdown-body {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+    .ai-markdown-body h3 {
+      font-size: 1.05rem;
+      color: #67e8f9;
+      margin-top: 1rem;
+      margin-bottom: 0.4rem;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 0.2rem;
+    }
+    .ai-markdown-body p {
+      margin-bottom: 0.6rem;
+    }
+    .ai-markdown-body ul {
+      padding-left: 1.25rem;
+      margin-bottom: 0.8rem;
+    }
+    .ai-markdown-body li {
+      margin-bottom: 0.35rem;
+    }
+    .ai-markdown-body strong {
+      color: #fff;
+    }
+    .ai-result-actions {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      justify-content: flex-end;
+    }
+
+    .btn-mobile-back {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #334155;
+      color: #fff;
+      border: none;
+      font-size: 1.15rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .btn-mobile-back:hover {
+      background: #475569;
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 768px) {
+      .app-container {
+        position: relative;
+        width: 100%;
+        height: 100dvh;
+        overflow: hidden;
+      }
+      .sidebar-left {
+        width: 100% !important;
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        transition: transform 0.25s ease;
+      }
+      .chat-window {
+        width: 100% !important;
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        transition: transform 0.25s ease;
+      }
+      body.chat-open .sidebar-left {
+        transform: translateX(-100%);
+        pointer-events: none;
+      }
+      body.chat-open .chat-window {
+        z-index: 30;
+      }
+      .btn-mobile-back {
+        display: inline-flex !important;
+      }
+      .chat-header {
+        padding: 0.75rem 1rem;
+        gap: 0.6rem;
+      }
+      .chat-header img {
+        width: 38px;
+        height: 38px;
+      }
+      .btn-draw-together {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.75rem;
+      }
+      .live-canvas-container {
+        height: 270px;
+      }
+      .canvas-toolbar {
+        padding: 0.45rem 0.65rem;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        gap: 0.5rem;
+      }
+      .tool-group, .color-group, .action-group, .size-slider-box {
+        flex-shrink: 0;
+      }
+      .chat-messages {
+        padding: 0.9rem;
+        gap: 0.6rem;
+      }
+      .message-bubble {
+        max-width: 82%;
+        padding: 0.7rem 0.95rem;
+        font-size: 0.88rem;
+      }
+      .chat-input-bar {
+        padding: 0.75rem 1rem;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+        gap: 0.5rem;
+      }
+      .chat-input-bar input {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      .chat-input-bar button {
+        padding: 0.75rem 1.1rem;
+        font-size: 0.9rem;
+      }
+      .modal-card {
+        width: 95% !important;
+        max-height: 90vh;
+        padding: 1.25rem !important;
+      }
+      .auth-card {
+        padding: 1.75rem 1.25rem;
+        max-width: 100%;
+      }
+      .auth-container {
+        padding: 0.75rem;
+      }
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #3b82f6;
+      color: #fff;
+      padding: 0.8rem 1.4rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      font-size: 0.9rem;
+      font-weight: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 1999;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- CREATE GROUP MODAL -->
+  <div id="createGroupModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Create New Group</h3>
+        <button id="btnCloseGroupModal" class="modal-close">&times;</button>
+      </div>
+      <form id="createGroupForm">
+        <div class="form-group">
+          <label>Group Name</label>
+          <input type="text" id="newGroupName" required placeholder="e.g. Design Team, Art Club...">
+        </div>
+        <div class="form-group">
+          <label>Select Friends to Add</label>
+          <div id="groupFriendsChecklist" class="friends-checklist"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btnCancelGroupModal" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary-small">Create Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- AI DRAWING ASSISTANT MODAL -->
+  <div id="aiDrawingModal" class="modal-backdrop hidden">
+    <div class="modal-card ai-modal-card">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.6rem;">🤖</span>
+          <div>
+            <h3>AI Drawing Coach & Critique</h3>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Understand layout, identify shapes & improve your drawing</div>
+          </div>
+        </div>
+        <button id="btnCloseAiModal" class="modal-close">&times;</button>
+      </div>
+
+      <!-- AI Drawing Controls -->
+      <div class="ai-controls-box">
+        <div class="form-group" style="margin-bottom:0.8rem;">
+          <label>Focus Area</label>
+          <div class="ai-focus-pills" id="aiFocusPills">
+            <button type="button" class="ai-pill active" data-focus="ALL">🎯 Comprehensive</button>
+            <button type="button" class="ai-pill" data-focus="COMPOSITION">📐 Composition & Layout</button>
+            <button type="button" class="ai-pill" data-focus="TECHNIQUE">🖌️ Linework & Technique</button>
+            <button type="button" class="ai-pill" data-focus="DIAGRAM">📊 Diagram & Architecture</button>
+            <button type="button" class="ai-pill" data-focus="COLOR">🎨 Colors & Shading</button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0.8rem;">
+          <label>Ask the AI a question or goal (Optional)</label>
+          <input type="text" id="aiQuestionInput" placeholder="e.g. How can I make this layout cleaner? Is the perspective right?">
+        </div>
+
+        <button id="btnRunAiAnalysis" class="btn" style="background:linear-gradient(135deg, #8b5cf6, #06b6d4);">
+          ✨ Analyze Drawing & Suggest Improvements
+        </button>
+      </div>
+
+      <!-- AI Loading State -->
+      <div id="aiLoadingIndicator" class="ai-loading-box hidden">
+        <div class="ai-spinner"></div>
+        <div style="font-weight:600; font-size:0.95rem;">AI Art Mentor is analyzing your canvas...</div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Evaluating composition, linework weight, color balance, and structure</div>
+      </div>
+
+      <!-- AI Results Area -->
+      <div id="aiResultsArea" class="ai-results-scroll hidden">
+        <div class="ai-provider-badge" id="aiProviderBadge">⚡ Powered by AI</div>
+        <div id="aiMarkdownContent" class="ai-markdown-body"></div>
+        
+        <div class="ai-result-actions">
+          <button id="btnShareAiToChat" class="action-btn send-drawing" title="Share AI advice into the chat room">
+            💬 Share Advice to Chat
+          </button>
+          <button id="btnCopyAiAdvice" class="action-btn" title="Copy to clipboard">
+            📋 Copy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH SCREEN -->
+  <div id="authScreen" class="auth-container">
+    <div class="auth-card">
+      <div style="text-align: center; margin-bottom: 1.25rem;">
+        <div style="display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;">
+          <div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, #6366f1, #ec4899); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:1.3rem; box-shadow:0 4px 14px rgba(99,102,241,0.4);">◈</div>
+          <span style="font-size:1.85rem; font-weight:800; letter-spacing:0.06em; background:linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">IRIS</span>
+        </div>
+      </div>
+      <h2 id="authTitle">Welcome Back</h2>
+      <p class="subtitle" id="authSubtitle">Log in to your IRIS account</p>
+
+      <!-- Login Form -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="loginEmail" required placeholder="alex@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn">Sign In</button>
+        <div class="auth-toggle">
+          Don't have an account? <a id="showRegister">Sign up</a>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="hidden">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="regFullName" required placeholder="Alex Mercer">
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="regUserName" required placeholder="alexm">
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" required placeholder="alex@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="regPassword" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label>Profile Picture <span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">(Optional)</span></label>
+          <input type="file" id="regProfileImage" accept="image/*">
+        </div>
+        <button type="submit" class="btn">Create Account</button>
+        <div class="auth-toggle">
+          Already have an account? <a id="showLogin">Log in</a>
+        </div>
+      </form>
+
+      <div style="text-align:center; margin-top:1.25rem;">
+        <span id="btnConfigServer" style="font-size:0.75rem; color:var(--text-muted); cursor:pointer; text-decoration:underline;">
+          ⚙️ Backend: <span id="currentServerLabel"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CHAT APP SCREEN -->
+  <div id="appScreen" class="app-container hidden">
+    <!-- Left Sidebar -->
+    <div class="sidebar-left">
+      <div style="padding: 0.85rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border);">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, #6366f1, #ec4899); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 0.85rem; box-shadow: 0 2px 8px rgba(99,102,241,0.3);">◈</div>
+          <span style="font-weight: 800; font-size: 1.15rem; letter-spacing: 0.05em; background: linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">IRIS</span>
+        </div>
+        <span style="font-size: 0.7rem; color: var(--text-muted); padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);">Online</span>
+      </div>
+      <div class="my-profile-header">
+        <img id="myAvatar" src="" alt="Avatar">
+        <div class="my-info">
+          <div class="name" id="myName">My Name</div>
+          <div class="tag" id="myUsername">@username</div>
+        </div>
+        <button class="btn-logout" id="logoutBtn">Log out</button>
+      </div>
+
+      <div class="users-scroll">
+        <!-- Chat Groups Section -->
+        <div class="section-header-row">
+          <div class="section-title">Chat Groups</div>
+          <button id="btnOpenCreateGroup" class="btn-create-group">+ New Group</button>
+        </div>
+        <div id="groupsList"></div>
+
+        <!-- Friend Requests -->
+        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">Friend Requests</div>
+        <div id="friendRequestsList"></div>
+
+        <!-- Friends List -->
+        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">Your Friends</div>
+        <div id="friendsList"></div>
+
+        <!-- Other Users -->
+        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">Other Users</div>
+        <div id="otherUsersList"></div>
+      </div>
+    </div>
+
+    <!-- Center Chat Window -->
+    <div class="chat-window">
+      <div class="chat-header hidden" id="chatHeader">
+        <button id="btnMobileBack" class="btn-mobile-back" title="Back to chats">←</button>
+        <img id="activeChatAvatar" src="" alt="Avatar">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="activeChatName">Chat Name</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="activeChatStatus">Online</div>
+        </div>
+        <button class="btn-draw-together" id="btnToggleCanvas">
+          <span>🎨</span> <span id="btnDrawText">Live Canvas</span>
+        </button>
+      </div>
+
+      <div class="chat-content-area">
+        <!-- LIVE COLLABORATIVE DRAWING CANVAS PANEL -->
+        <div id="liveCanvasPanel" class="live-canvas-container hidden">
+          <div class="canvas-toolbar">
+            <div class="tool-group">
+              <button class="tool-btn active" data-tool="brush" title="Brush">🖌️ Brush</button>
+              <button class="tool-btn" data-tool="eraser" title="Eraser">🧹 Eraser</button>
+              <button class="tool-btn" data-tool="line" title="Line">📏 Line</button>
+              <button class="tool-btn" data-tool="rectangle" title="Rectangle">⬜ Box</button>
+              <button class="tool-btn" data-tool="circle" title="Circle">⭕ Circle</button>
+            </div>
+
+            <div class="color-group">
+              <span class="color-swatch active" style="background: #ffffff;" data-color="#ffffff"></span>
+              <span class="color-swatch" style="background: #ef4444;" data-color="#ef4444"></span>
+              <span class="color-swatch" style="background: #22c55e;" data-color="#22c55e"></span>
+              <span class="color-swatch" style="background: #3b82f6;" data-color="#3b82f6"></span>
+              <span class="color-swatch" style="background: #eab308;" data-color="#eab308"></span>
+              <span class="color-swatch" style="background: #ec4899;" data-color="#ec4899"></span>
+              <input type="color" id="customColorPicker" value="#ffffff" title="Custom Color">
+            </div>
+
+            <div class="size-slider-box">
+              <span>Size:</span>
+              <input type="range" id="sizeSlider" min="1" max="30" value="4">
+              <span id="sizeVal">4px</span>
+            </div>
+
+            <div class="action-group" style="margin-left: auto;">
+              <button class="action-btn btn-ai" id="btnAiFeedback" title="AI Drawing Coach & Improvement Analysis">🤖 AI Critique</button>
+              <button class="action-btn" id="btnUndo" title="Undo">↩️</button>
+              <button class="action-btn" id="btnRedo" title="Redo">↪️</button>
+              <button class="action-btn" id="btnClearCanvas" title="Clear Canvas">🗑️ Clear</button>
+              <button class="action-btn send-drawing" id="btnSendDrawing" title="Post to chat">📤 Send to Chat</button>
+              <button class="action-btn" id="btnCloseCanvas" title="Close Canvas">✕</button>
+            </div>
+          </div>
+
+          <div class="canvas-viewport" id="canvasViewport">
+            <canvas id="paintCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Chat Messages List -->
+        <div class="chat-messages" id="chatMessages">
+          <div style="margin: auto; color: var(--text-muted); text-align: center;">
+            Select a friend or group from the left sidebar to start messaging.
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-bar hidden" id="chatInputBar">
+        <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let token = localStorage.getItem('token');
+    let currentUser = null;
+    let hub = null;
+    let allUsers = [];
+    let myGroups = [];
+    let currentChatType = null; // 'friend' or 'group'
+    let selectedFriendId = null;
+    let selectedFriendObj = null;
+    let selectedGroupId = null;
+    let selectedGroupObj = null;
+    let typingTimer = null;
+
+    let API_BASE = localStorage.getItem('chat_api_url') || window.location.origin;
+    if (API_BASE.endsWith('/')) API_BASE = API_BASE.slice(0, -1);
+
+    function updateServerLabel() {
+      const el = document.getElementById('currentServerLabel');
+      if (el) el.textContent = API_BASE;
+    }
+    updateServerLabel();
+
+    const configBtn = document.getElementById('btnConfigServer');
+    if (configBtn) {
+      configBtn.onclick = () => {
+        const customUrl = prompt('Enter backend API URL (e.g. https://your-app.onrender.com):', API_BASE);
+        if (customUrl !== null) {
+          const trimmed = customUrl.trim().replace(/\/$/, '');
+          if (trimmed) {
+            localStorage.setItem('chat_api_url', trimmed);
+            API_BASE = trimmed;
+          } else {
+            localStorage.removeItem('chat_api_url');
+            API_BASE = window.location.origin;
+          }
+          updateServerLabel();
+          showToast('Backend URL updated: ' + API_BASE);
+        }
+      };
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function stringToColor(str) {
+      const colors = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#f43f5e', '#14b8a6'];
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    // Toggle Login / Register
+    document.getElementById('showRegister').onclick = () => {
+      document.getElementById('loginForm').classList.add('hidden');
+      document.getElementById('registerForm').classList.remove('hidden');
+      document.getElementById('authTitle').innerText = 'Create Account';
+      document.getElementById('authSubtitle').innerText = 'Join the IRIS community';
+    };
+    document.getElementById('showLogin').onclick = () => {
+      document.getElementById('registerForm').classList.add('hidden');
+      document.getElementById('loginForm').classList.remove('hidden');
+      document.getElementById('authTitle').innerText = 'Welcome Back';
+      document.getElementById('authSubtitle').innerText = 'Log in to your IRIS account';
+    };
+
+    // Logout
+    document.getElementById('logoutBtn').onclick = () => {
+      localStorage.removeItem('token');
+      if (hub) hub.stop();
+      location.reload();
+    };
+
+    // Register Handler
+    document.getElementById('registerForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('fullName', document.getElementById('regFullName').value);
+      formData.append('userName', document.getElementById('regUserName').value);
+      formData.append('email', document.getElementById('regEmail').value);
+      formData.append('password', document.getElementById('regPassword').value);
+      const fileInput = document.getElementById('regProfileImage');
+      if (fileInput.files && fileInput.files.length > 0 && fileInput.files[0]) {
+        formData.append('profileImage', fileInput.files[0]);
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/account/register`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast('Account created! Logging you in...');
+          document.getElementById('loginEmail').value = document.getElementById('regEmail').value;
+          document.getElementById('loginPassword').value = document.getElementById('regPassword').value;
+          document.getElementById('showLogin').click();
+          document.getElementById('loginForm').requestSubmit();
+        } else {
+          showToast('Error: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        showToast('Registration failed: ' + err.message);
+      }
+    };
+
+    // Login Handler
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/account/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          token = data.data;
+          localStorage.setItem('token', token);
+          initApp();
+        } else {
+          showToast('Login failed: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        showToast('Login failed: ' + err.message);
+      }
+    };
+
+    async function initApp() {
+      try {
+        const res = await fetch(`${API_BASE}/api/account/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const meData = await res.json();
+        if (!meData.isSuccess) {
+          localStorage.removeItem('token');
+          return;
+        }
+
+        currentUser = meData.data;
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+
+        document.getElementById('myAvatar').src = currentUser.profileImage || 'https://via.placeholder.com/50';
+        document.getElementById('myName').innerText = currentUser.fullName;
+        document.getElementById('myUsername').innerText = '@' + currentUser.userName;
+
+        connectSignalR();
+        loadFriendRequests();
+        loadMyGroups();
+        setupCanvasModule();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function connectSignalR() {
+      hub = new signalR.HubConnectionBuilder()
+        .withUrl(`${API_BASE}/hubs/chat`, {
+          accessTokenFactory: () => token,
+          transport: signalR.HttpTransportType.WebSockets
+        })
+        .withAutomaticReconnect()
+        .build();
+
+      hub.on('OnlineUsers', (users) => {
+        allUsers = users;
+        renderUsers();
+      });
+
+      hub.on('ReceiveMessageList', (messages) => {
+        renderMessages(messages);
+      });
+
+      hub.on('ReceiveNewMessage', (message) => {
+        if (currentChatType === 'friend' && selectedFriendId &&
+           (message.senderId === selectedFriendId || message.receiverId === selectedFriendId)) {
+          appendMessage(message);
+        }
+      });
+
+      hub.on('ReceiveNewGroupMessage', (message) => {
+        if (currentChatType === 'group' && selectedGroupId && message.groupId === selectedGroupId) {
+          // If we didn't already append it locally
+          if (message.senderId !== currentUser.id) {
+            appendMessage(message);
+          }
+        }
+      });
+
+      hub.on('NotifyTypingToUser', (userName) => {
+        if (currentChatType === 'friend' && selectedFriendObj && selectedFriendObj.userName === userName) {
+          document.getElementById('activeChatStatus').innerText = 'Typing...';
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => {
+            document.getElementById('activeChatStatus').innerText = selectedFriendObj.isOnline ? 'Online' : 'Offline';
+          }, 3000);
+        }
+      });
+
+      hub.on('Notify', (user) => {
+        showToast(`${user.fullName} is online.`);
+      });
+
+      // ============================================
+      // LIVE COLLABORATIVE CANVAS SIGNALR LISTENERS
+      // ============================================
+      // 1-on-1 Canvas Events
+      hub.on('ReceiveCanvasDraw', (drawData) => {
+        if (!drawData) return;
+        drawRemoteStroke(drawData);
+      });
+
+      hub.on('ReceiveCanvasClear', () => {
+        clearCanvasLocal();
+        showToast('Partner cleared the canvas');
+      });
+
+      hub.on('ReceiveCanvasCursor', (cursorData) => {
+        updateRemoteCursorPosition(cursorData);
+      });
+
+      hub.on('ReceiveToggleCanvas', (toggleData) => {
+        if (toggleData.isOpen) {
+          openCanvasPanel();
+          showToast(`🎨 ${toggleData.senderName || 'Friend'} opened the live drawing canvas!`);
+        } else {
+          closeCanvasPanel();
+        }
+      });
+
+      // Group Canvas Events
+      hub.on('ReceiveGroupCanvasDraw', (drawData) => {
+        if (!drawData) return;
+        if (currentChatType === 'group' && selectedGroupId && drawData.groupId === selectedGroupId) {
+          drawRemoteStroke(drawData);
+        }
+      });
+
+      hub.on('ReceiveGroupCanvasClear', (data) => {
+        if (currentChatType === 'group' && selectedGroupId && data.groupId === selectedGroupId) {
+          clearCanvasLocal();
+          showToast(`🎨 ${data.senderName || 'Member'} cleared the group canvas`);
+        }
+      });
+
+      hub.on('ReceiveGroupCanvasCursor', (cursorData) => {
+        if (currentChatType === 'group' && selectedGroupId && cursorData.groupId === selectedGroupId) {
+          updateRemoteCursorPosition(cursorData);
+        }
+      });
+
+      hub.on('ReceiveToggleGroupCanvas', (toggleData) => {
+        if (currentChatType === 'group' && selectedGroupId && toggleData.groupId === selectedGroupId) {
+          if (toggleData.isOpen) {
+            openCanvasPanel();
+            showToast(`🎨 ${toggleData.senderName || 'Group member'} opened live group drawing!`);
+          } else {
+            closeCanvasPanel();
+          }
+        }
+      });
+
+      hub.start().then(() => console.log('SignalR connected successfully!')).catch(console.error);
+    }
+
+    // ============================================
+    // GROUPS MANAGEMENT
+    // ============================================
+    async function loadMyGroups() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/group/my-groups`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          myGroups = data.data || [];
+          renderGroups();
+        }
+      } catch (err) {
+        console.error('Error loading groups:', err);
+      }
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('groupsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (myGroups.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding:0.3rem 0.5rem;">No groups yet. Click + New Group!</div>';
+        return;
+      }
+
+      myGroups.forEach(g => {
+        const item = document.createElement('div');
+        const isActive = currentChatType === 'group' && selectedGroupId === g.id;
+        item.className = 'user-item' + (isActive ? ' active' : '');
+
+        const memberCount = (g.memberIds && g.memberIds.length) || 1;
+        const initial = (g.name || 'G').charAt(0).toUpperCase();
+
+        item.innerHTML = `
+          <div class="group-avatar">${initial}</div>
+          <div class="user-meta">
+            <div class="u-name">${escapeHtml(g.name)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">👥 ${memberCount} member${memberCount > 1 ? 's' : ''}</div>
+          </div>
+        `;
+        item.onclick = () => selectGroup(g);
+        container.appendChild(item);
+      });
+    }
+
+    function selectGroup(group) {
+      currentChatType = 'group';
+      selectedGroupId = group.id;
+      selectedGroupObj = group;
+      selectedFriendId = null;
+      selectedFriendObj = null;
+
+      document.body.classList.add('chat-open');
+      document.getElementById('chatHeader').classList.remove('hidden');
+      document.getElementById('chatInputBar').classList.remove('hidden');
+
+      const avatarEl = document.getElementById('activeChatAvatar');
+      avatarEl.src = group.groupImage || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=100&h=100&fit=crop';
+      document.getElementById('activeChatName').innerText = group.name;
+      const count = (group.memberIds && group.memberIds.length) || 1;
+      document.getElementById('activeChatStatus').innerText = `Group • ${count} members`;
+
+      renderGroups();
+      renderUsers();
+
+      document.getElementById('chatMessages').innerHTML = '';
+      hub.invoke('LoadGroupMessages', group.id, 1);
+    }
+
+    // Create Group Modal
+    function openCreateGroupModal() {
+      const modal = document.getElementById('createGroupModal');
+      const checklist = document.getElementById('groupFriendsChecklist');
+      checklist.innerHTML = '';
+
+      const myFriendsIds = (currentUser && currentUser.friendsId) || [];
+      const friendUsers = allUsers.filter(u => myFriendsIds.includes(u.id));
+
+      if (friendUsers.length === 0) {
+        checklist.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:0.5rem;">Add some friends first to invite them to groups!</div>';
+      } else {
+        friendUsers.forEach(f => {
+          const row = document.createElement('label');
+          row.className = 'friend-check-item';
+          row.innerHTML = `
+            <input type="checkbox" value="${f.id}">
+            <img src="${f.profilePicture || 'https://via.placeholder.com/28'}" alt="${escapeHtml(f.fullName)}">
+            <span style="font-size:0.9rem; font-weight:600;">${escapeHtml(f.fullName)}</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);">(@${escapeHtml(f.userName)})</span>
+          `;
+          checklist.appendChild(row);
+        });
+      }
+
+      document.getElementById('newGroupName').value = '';
+      modal.classList.remove('hidden');
+    }
+
+    function closeCreateGroupModal() {
+      document.getElementById('createGroupModal').classList.add('hidden');
+    }
+
+    document.getElementById('btnOpenCreateGroup').onclick = openCreateGroupModal;
+    document.getElementById('btnCloseGroupModal').onclick = closeCreateGroupModal;
+    document.getElementById('btnCancelGroupModal').onclick = closeCreateGroupModal;
+
+    document.getElementById('createGroupForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('newGroupName').value.trim();
+      if (!name) return;
+
+      const checkedBoxes = document.querySelectorAll('#groupFriendsChecklist input[type="checkbox"]:checked');
+      const selectedMemberIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: name,
+            memberIds: selectedMemberIds
+          })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Group "${name}" created!`);
+          closeCreateGroupModal();
+          await loadMyGroups();
+          if (data.data) {
+            selectGroup(data.data);
+          }
+        } else {
+          showToast('Error: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        showToast('Failed to create group: ' + err.message);
+      }
+    };
+
+    // ============================================
+    // USERS & FRIENDS
+    // ============================================
+    async function loadFriendRequests() {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/account/firendsrequestsforme?receiverId=${currentUser.id}`);
+        const data = await res.json();
+        const reqList = document.getElementById('friendRequestsList');
+        reqList.innerHTML = '';
+
+        if (data.isSuccess && data.data.length > 0) {
+          for (const req of data.data) {
+            const reqDiv = document.createElement('div');
+            reqDiv.className = 'user-item';
+            reqDiv.innerHTML = `
+              <div class="user-meta">
+                <div class="u-name">Request #${req.id}</div>
+              </div>
+              <button class="btn-action-small">Accept</button>
+            `;
+            reqDiv.querySelector('button').onclick = async () => {
+              await fetch(`${API_BASE}/api/account/acceptrequest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senderId: req.senderId, receiverId: req.receiverId })
+              });
+              showToast('Friend request accepted!');
+              loadFriendRequests();
+              initApp();
+            };
+            reqList.appendChild(reqDiv);
+          }
+        } else {
+          reqList.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding:0.2rem 0.5rem;">No pending requests</div>';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderUsers() {
+      const friendsListEl = document.getElementById('friendsList');
+      const otherListEl = document.getElementById('otherUsersList');
+      friendsListEl.innerHTML = '';
+      otherListEl.innerHTML = '';
+
+      const myFriendsIds = (currentUser && currentUser.friendsId) || [];
+
+      allUsers.filter(u => u.id !== currentUser.id).forEach(u => {
+        const isFriend = myFriendsIds.includes(u.id);
+        const item = document.createElement('div');
+        const isActive = currentChatType === 'friend' && selectedFriendId === u.id;
+        item.className = 'user-item' + (isActive ? ' active' : '');
+        item.innerHTML = `
+          <div class="avatar-wrapper">
+            <img src="${u.profilePicture || 'https://via.placeholder.com/40'}" alt="Avatar">
+            <span class="status-dot ${u.isOnline ? 'online' : 'offline'}"></span>
+          </div>
+          <div class="user-meta">
+            <div class="u-name">${escapeHtml(u.fullName)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${u.isOnline ? 'Online' : 'Offline'}</div>
+          </div>
+        `;
+
+        if (isFriend) {
+          item.onclick = () => selectFriend(u);
+          friendsListEl.appendChild(item);
+        } else {
+          const addBtn = document.createElement('button');
+          addBtn.className = 'btn-action-small';
+          addBtn.innerText = 'Add';
+          addBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await fetch(`${API_BASE}/api/account/sendfriendrequest`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ senderId: currentUser.id, receiverId: u.id })
+            });
+            showToast('Friend request sent to ' + u.fullName);
+          };
+          item.appendChild(addBtn);
+          otherListEl.appendChild(item);
+        }
+      });
+    }
+
+    function selectFriend(friend) {
+      currentChatType = 'friend';
+      selectedFriendId = friend.id;
+      selectedFriendObj = friend;
+      selectedGroupId = null;
+      selectedGroupObj = null;
+
+      document.body.classList.add('chat-open');
+      document.getElementById('chatHeader').classList.remove('hidden');
+      document.getElementById('chatInputBar').classList.remove('hidden');
+      document.getElementById('activeChatAvatar').src = friend.profilePicture || 'https://via.placeholder.com/44';
+      document.getElementById('activeChatName').innerText = friend.fullName;
+      document.getElementById('activeChatStatus').innerText = friend.isOnline ? 'Online' : 'Offline';
+
+      renderGroups();
+      renderUsers();
+      document.getElementById('chatMessages').innerHTML = '';
+      hub.invoke('LoadMessages', friend.id, 1);
+    }
+
+    document.getElementById('btnMobileBack').onclick = () => {
+      document.body.classList.remove('chat-open');
+    };
+
+    // ============================================
+    // CHAT MESSAGING
+    // ============================================
+    function renderMessages(messages) {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      if (messages) {
+        messages.forEach(appendMessage);
+      }
+    }
+
+    function appendMessage(msg) {
+      const container = document.getElementById('chatMessages');
+      const bubble = document.createElement('div');
+      const isMe = msg.senderId === currentUser.id || msg.senderId === currentUser.userName;
+      bubble.className = 'message-bubble ' + (isMe ? 'me' : 'other');
+
+      let contentHtml = '';
+      // Group Chat: Show sender name if it's someone else
+      if (currentChatType === 'group' && !isMe && msg.senderName) {
+        const color = stringToColor(msg.senderName);
+        contentHtml += `<div class="group-msg-sender" style="color:${color};">${escapeHtml(msg.senderName)}</div>`;
+      }
+
+      // Check if message content is an image or regular text
+      if (msg.content && (msg.content.startsWith('data:image/') || (msg.content.startsWith('http') && (msg.content.includes('/uploads/') || msg.content.includes('discord'))))) {
+        contentHtml += `<div>Shared a drawing:</div><img src="${msg.content}" class="chat-drawing-img" alt="Drawing">`;
+      } else {
+        contentHtml += `<div>${escapeHtml(msg.content)}</div>`;
+      }
+
+      bubble.innerHTML = contentHtml;
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (currentChatType === 'group' && selectedGroupId) {
+        await hub.invoke('SendGroupMessage', { groupId: selectedGroupId, content: text });
+        appendMessage({ senderId: currentUser.id, senderName: currentUser.fullName, groupId: selectedGroupId, content: text });
+        input.value = '';
+      } else if (selectedFriendId) {
+        const msg = { receiverId: selectedFriendId, content: text };
+        await hub.invoke('SendMessage', msg);
+        appendMessage({ senderId: currentUser.id, content: text });
+        input.value = '';
+      }
+    }
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('messageInput').onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      } else if (currentChatType === 'friend' && selectedFriendObj) {
+        hub.invoke('NotifyTyping', selectedFriendObj.userName);
+      }
+    };
+
+    // Auto-login if token stored
+    if (token) {
+      initApp();
+    }
+
+    // ==============================================================
+    // LIVE COLLABORATIVE DRAWING CANVAS MODULE
+    // (Device-independent normalized coordinates for 1-1 & Groups)
+    // ==============================================================
+    let canvas, ctx;
+    let isDrawing = false;
+    let currentTool = 'brush'; // 'brush', 'eraser', 'line', 'rectangle', 'circle'
+    let currentColor = '#ffffff';
+    let currentStrokeWidth = 4;
+    let startX = 0, startY = 0;
+    let lastNormX = 0, lastNormY = 0;
+    let history = [];
+    let redoStack = [];
+    const MAX_HISTORY = 40;
+    let isCanvasOpen = false;
+    const remoteCursors = {}; // senderId -> element
+
+    function setupCanvasModule() {
+      canvas = document.getElementById('paintCanvas');
+      ctx = canvas.getContext('2d');
+
+      const toggleBtn = document.getElementById('btnToggleCanvas');
+      const closeBtn = document.getElementById('btnCloseCanvas');
+
+      toggleBtn.onclick = () => {
+        if (!selectedFriendId && !selectedGroupId) {
+          showToast('Select a friend or group to draw together!');
+          return;
+        }
+        if (isCanvasOpen) {
+          closeCanvasPanel();
+          broadcastToggleCanvas(false);
+        } else {
+          openCanvasPanel();
+          broadcastToggleCanvas(true);
+        }
+      };
+
+      closeBtn.onclick = () => {
+        closeCanvasPanel();
+        broadcastToggleCanvas(false);
+      };
+
+      window.addEventListener('resize', resizeCanvas);
+
+      // Tool Buttons
+      document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentTool = btn.getAttribute('data-tool');
+        };
+      });
+
+      // Color Swatches
+      document.querySelectorAll('.color-swatch').forEach(swatch => {
+        swatch.onclick = () => {
+          document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+          swatch.classList.add('active');
+          currentColor = swatch.getAttribute('data-color');
+        };
+      });
+
+      // Custom Color Picker
+      const colorPicker = document.getElementById('customColorPicker');
+      colorPicker.oninput = (e) => {
+        currentColor = e.target.value;
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      };
+
+      // Stroke Width Slider
+      const sizeSlider = document.getElementById('sizeSlider');
+      const sizeVal = document.getElementById('sizeVal');
+      sizeSlider.oninput = (e) => {
+        currentStrokeWidth = parseInt(e.target.value);
+        sizeVal.innerText = currentStrokeWidth + 'px';
+      };
+
+      // Undo / Redo
+      document.getElementById('btnUndo').onclick = undoCanvas;
+      document.getElementById('btnRedo').onclick = redoCanvas;
+
+      // Clear Canvas
+      document.getElementById('btnClearCanvas').onclick = () => {
+        clearCanvasLocal();
+        saveHistory();
+        broadcastClear();
+      };
+
+      // Send Drawing to Chat
+      document.getElementById('btnSendDrawing').onclick = async () => {
+        const dataUrl = canvas.toDataURL('image/png');
+        if (currentChatType === 'group' && selectedGroupId) {
+          await hub.invoke('SendGroupMessage', { groupId: selectedGroupId, content: dataUrl });
+          appendMessage({ senderId: currentUser.id, senderName: currentUser.fullName, groupId: selectedGroupId, content: dataUrl });
+          showToast('🎨 Group drawing shared in chat!');
+        } else if (selectedFriendId) {
+          const msg = { receiverId: selectedFriendId, content: dataUrl };
+          await hub.invoke('SendMessage', msg);
+          appendMessage({ senderId: currentUser.id, content: dataUrl });
+          showToast('🎨 Drawing shared in chat!');
+        }
+      };
+
+      // Mouse Events
+      canvas.addEventListener('mousedown', startPaint);
+      canvas.addEventListener('mousemove', drawPaint);
+      canvas.addEventListener('mouseup', stopPaint);
+      canvas.addEventListener('mouseleave', stopPaint);
+
+      // Touch Events (Mobile / Tablet support)
+      canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPaint(e); }, { passive: false });
+      canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawPaint(e); }, { passive: false });
+      canvas.addEventListener('touchend', stopPaint);
+    }
+
+    function openCanvasPanel() {
+      const panel = document.getElementById('liveCanvasPanel');
+      const toggleBtn = document.getElementById('btnToggleCanvas');
+      panel.classList.remove('hidden');
+      toggleBtn.classList.add('active');
+      document.getElementById('btnDrawText').innerText = 'Drawing Active';
+      isCanvasOpen = true;
+      setTimeout(resizeCanvas, 50);
+    }
+
+    function closeCanvasPanel() {
+      const panel = document.getElementById('liveCanvasPanel');
+      const toggleBtn = document.getElementById('btnToggleCanvas');
+      panel.classList.add('hidden');
+      toggleBtn.classList.remove('active');
+      document.getElementById('btnDrawText').innerText = 'Live Canvas';
+      isCanvasOpen = false;
+    }
+
+    function broadcastToggleCanvas(isOpen) {
+      if (currentChatType === 'group' && selectedGroupId) {
+        hub.invoke('ToggleGroupCanvas', {
+          groupId: selectedGroupId,
+          isOpen: isOpen,
+          senderName: currentUser.fullName
+        });
+      } else if (selectedFriendId) {
+        hub.invoke('ToggleCanvas', { receiverId: selectedFriendId, isOpen: isOpen });
+      }
+    }
+
+    function broadcastClear() {
+      if (currentChatType === 'group' && selectedGroupId) {
+        hub.invoke('SendGroupCanvasClear', {
+          groupId: selectedGroupId,
+          senderName: currentUser.fullName
+        });
+      } else if (selectedFriendId) {
+        hub.invoke('SendCanvasClear', { receiverId: selectedFriendId });
+      }
+    }
+
+    function resizeCanvas() {
+      if (!canvas || !canvas.parentElement) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+
+      if (history.length > 0) {
+        redrawFromHistory();
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        saveHistory();
+      }
+    }
+
+    function saveHistory() {
+      if (!canvas || canvas.width === 0) return;
+      if (history.length >= MAX_HISTORY) {
+        history.shift();
+      }
+      history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      redoStack = [];
+    }
+
+    function undoCanvas() {
+      if (history.length > 1) {
+        redoStack.push(history.pop());
+        const previousState = history[history.length - 1];
+        ctx.putImageData(previousState, 0, 0);
+      }
+    }
+
+    function redoCanvas() {
+      if (redoStack.length > 0) {
+        const nextState = redoStack.pop();
+        history.push(nextState);
+        ctx.putImageData(nextState, 0, 0);
+      }
+    }
+
+    function clearCanvasLocal() {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function redrawFromHistory() {
+      if (history.length > 0) {
+        ctx.putImageData(history[history.length - 1], 0, 0);
+      }
+    }
+
+    function getCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+        normX: (clientX - rect.left) / canvas.width,
+        normY: (clientY - rect.top) / canvas.height
+      };
+    }
+
+    function startPaint(e) {
+      isDrawing = true;
+      const pos = getCoords(e);
+      startX = pos.x;
+      startY = pos.y;
+      lastNormX = pos.normX;
+      lastNormY = pos.normY;
+
+      saveHistory();
+
+      if (currentTool === 'brush') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+      }
+    }
+
+    let cursorThrottle = 0;
+
+    function drawPaint(e) {
+      const pos = getCoords(e);
+
+      // Throttled cursor broadcast
+      const now = Date.now();
+      if (now - cursorThrottle > 50) {
+        cursorThrottle = now;
+        if (currentChatType === 'group' && selectedGroupId) {
+          hub.invoke('SendGroupCanvasCursor', {
+            groupId: selectedGroupId,
+            x: pos.normX,
+            y: pos.normY,
+            senderId: currentUser.id,
+            senderName: currentUser.fullName
+          });
+        } else if (selectedFriendId) {
+          hub.invoke('SendCanvasCursor', {
+            receiverId: selectedFriendId,
+            x: pos.normX,
+            y: pos.normY
+          });
+        }
+      }
+
+      if (!isDrawing) return;
+
+      const curX = pos.x;
+      const curY = pos.y;
+
+      if (currentTool === 'brush') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(curX, curY);
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = currentStrokeWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        // Broadcast stroke
+        const strokePayload = {
+          fromX: lastNormX,
+          fromY: lastNormY,
+          toX: pos.normX,
+          toY: pos.normY,
+          color: currentColor,
+          width: currentStrokeWidth,
+          tool: 'brush'
+        };
+
+        if (currentChatType === 'group' && selectedGroupId) {
+          strokePayload.groupId = selectedGroupId;
+          hub.invoke('SendGroupCanvasDraw', strokePayload);
+        } else if (selectedFriendId) {
+          strokePayload.receiverId = selectedFriendId;
+          hub.invoke('SendCanvasDraw', strokePayload);
+        }
+
+        startX = curX;
+        startY = curY;
+        lastNormX = pos.normX;
+        lastNormY = pos.normY;
+      } else if (currentTool === 'eraser') {
+        const eraseSize = currentStrokeWidth * 3;
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(curX - eraseSize / 2, curY - eraseSize / 2, eraseSize, eraseSize);
+
+        const erasePayload = {
+          fromX: lastNormX,
+          fromY: lastNormY,
+          toX: pos.normX,
+          toY: pos.normY,
+          color: '#0f172a',
+          width: eraseSize,
+          tool: 'eraser'
+        };
+
+        if (currentChatType === 'group' && selectedGroupId) {
+          erasePayload.groupId = selectedGroupId;
+          hub.invoke('SendGroupCanvasDraw', erasePayload);
+        } else if (selectedFriendId) {
+          erasePayload.receiverId = selectedFriendId;
+          hub.invoke('SendCanvasDraw', erasePayload);
+        }
+
+        startX = curX;
+        startY = curY;
+        lastNormX = pos.normX;
+        lastNormY = pos.normY;
+      } else {
+        // Preview shapes
+        if (history.length > 0) {
+          ctx.putImageData(history[history.length - 1], 0, 0);
+        }
+        renderShape(ctx, currentTool, startX, startY, curX, curY, currentColor, currentStrokeWidth);
+      }
+    }
+
+    function stopPaint(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+
+      if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+        const pos = getCoords(e || { clientX: startX, clientY: startY });
+        if (history.length > 0) {
+          ctx.putImageData(history[history.length - 1], 0, 0);
+        }
+        renderShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, currentStrokeWidth);
+
+        const shapePayload = {
+          fromX: lastNormX,
+          fromY: lastNormY,
+          toX: pos.normX,
+          toY: pos.normY,
+          color: currentColor,
+          width: currentStrokeWidth,
+          tool: currentTool
+        };
+
+        if (currentChatType === 'group' && selectedGroupId) {
+          shapePayload.groupId = selectedGroupId;
+          hub.invoke('SendGroupCanvasDraw', shapePayload);
+        } else if (selectedFriendId) {
+          shapePayload.receiverId = selectedFriendId;
+          hub.invoke('SendCanvasDraw', shapePayload);
+        }
+      }
+
+      saveHistory();
+    }
+
+    function renderShape(targetCtx, tool, fromX, fromY, toX, toY, color, width) {
+      targetCtx.strokeStyle = color;
+      targetCtx.lineWidth = width;
+      targetCtx.lineCap = 'round';
+      targetCtx.lineJoin = 'round';
+
+      if (tool === 'line') {
+        targetCtx.beginPath();
+        targetCtx.moveTo(fromX, fromY);
+        targetCtx.lineTo(toX, toY);
+        targetCtx.stroke();
+      } else if (tool === 'rectangle') {
+        targetCtx.strokeRect(fromX, fromY, toX - fromX, toY - fromY);
+      } else if (tool === 'circle') {
+        const radius = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+        targetCtx.beginPath();
+        targetCtx.arc(fromX, fromY, radius, 0, 2 * Math.PI);
+        targetCtx.stroke();
+      }
+    }
+
+    function drawRemoteStroke(data) {
+      if (!canvas) return;
+      const fromX = data.fromX * canvas.width;
+      const fromY = data.fromY * canvas.height;
+      const toX = data.toX * canvas.width;
+      const toY = data.toY * canvas.height;
+
+      if (data.tool === 'eraser') {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(toX - data.width / 2, toY - data.width / 2, data.width, data.width);
+      } else if (data.tool === 'line' || data.tool === 'rectangle' || data.tool === 'circle') {
+        renderShape(ctx, data.tool, fromX, fromY, toX, toY, data.color, data.width);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(toX, toY);
+        ctx.strokeStyle = data.color;
+        ctx.lineWidth = data.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
+    }
+
+    // Multi-User Live Remote Cursor Badges
+    function updateRemoteCursorPosition(data) {
+      const container = document.getElementById('canvasViewport');
+      if (!container || !canvas) return;
+
+      const cursorId = data.senderId || 'peer';
+      let badge = remoteCursors[cursorId];
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'remote-cursor';
+        const userColor = stringToColor(data.senderName || cursorId);
+        badge.innerHTML = `
+          <div class="remote-cursor-dot" style="background:${userColor}; box-shadow:0 0 8px ${userColor};"></div>
+          <div class="remote-cursor-label" style="background:${userColor};">${escapeHtml(data.senderName || 'Member')}</div>
+        `;
+        container.appendChild(badge);
+        remoteCursors[cursorId] = badge;
+      }
+
+      const curX = data.x * canvas.width;
+      const curY = data.y * canvas.height;
+      badge.style.left = `${curX}px`;
+      badge.style.top = `${curY}px`;
+      badge.querySelector('.remote-cursor-label').innerText = data.senderName || (selectedFriendObj ? selectedFriendObj.fullName : 'Member');
+      badge.classList.remove('hidden');
+
+      clearTimeout(badge.hideTimer);
+      badge.hideTimer = setTimeout(() => {
+        badge.classList.add('hidden');
+      }, 3000);
+    }
+
+    // ============================================
+    // AI DRAWING COACH & IMPROVEMENT MODULE
+    // ============================================
+    let activeAiFocus = 'ALL';
+    let lastAiMarkdown = '';
+
+    function openAiModal() {
+      document.getElementById('aiDrawingModal').classList.remove('hidden');
+      document.getElementById('aiResultsArea').classList.add('hidden');
+      document.getElementById('aiLoadingIndicator').classList.add('hidden');
+    }
+
+    function closeAiModal() {
+      document.getElementById('aiDrawingModal').classList.add('hidden');
+    }
+
+    document.getElementById('btnAiFeedback').onclick = openAiModal;
+    document.getElementById('btnCloseAiModal').onclick = closeAiModal;
+
+    document.querySelectorAll('.ai-pill').forEach(pill => {
+      pill.onclick = () => {
+        document.querySelectorAll('.ai-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeAiFocus = pill.getAttribute('data-focus');
+      };
+    });
+
+    async function runAiAnalysis() {
+      const loading = document.getElementById('aiLoadingIndicator');
+      const results = document.getElementById('aiResultsArea');
+      const question = document.getElementById('aiQuestionInput').value.trim();
+
+      loading.classList.remove('hidden');
+      results.classList.add('hidden');
+
+      const dataUrl = canvas.toDataURL('image/png');
+
+      const payload = {
+        imageData: dataUrl,
+        prompt: question,
+        focusArea: activeAiFocus,
+        width: canvas.width,
+        height: canvas.height,
+        strokeCount: history.length,
+        toolsUsed: [currentTool],
+        colorsUsed: [currentColor]
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/analyze-drawing`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        loading.classList.add('hidden');
+
+        if (data.isSuccess && data.data) {
+          const aiData = data.data;
+          lastAiMarkdown = aiData.fullMarkdown;
+          document.getElementById('aiProviderBadge').innerText = `⚡ ${aiData.provider || 'AI Vision & Art Coach'}`;
+          document.getElementById('aiMarkdownContent').innerHTML = renderMarkdownToHtml(aiData.fullMarkdown);
+          results.classList.remove('hidden');
+          results.scrollTop = 0;
+        } else {
+          showToast('Analysis error: ' + (data.error || 'Failed to analyze'));
+        }
+      } catch (err) {
+        loading.classList.add('hidden');
+        showToast('AI analysis failed: ' + err.message);
+      }
+    }
+
+    document.getElementById('btnRunAiAnalysis').onclick = runAiAnalysis;
+
+    document.getElementById('btnCopyAiAdvice').onclick = () => {
+      if (!lastAiMarkdown) return;
+      navigator.clipboard.writeText(lastAiMarkdown).then(() => {
+        showToast('📋 AI feedback copied to clipboard!');
+      });
+    };
+
+    document.getElementById('btnShareAiToChat').onclick = async () => {
+      if (!lastAiMarkdown) return;
+      const snippet = `🤖 **AI Drawing Coach Critique:**\n\n` + lastAiMarkdown;
+      
+      if (currentChatType === 'group' && selectedGroupId) {
+        await hub.invoke('SendGroupMessage', { groupId: selectedGroupId, content: snippet });
+        appendMessage({ senderId: currentUser.id, senderName: currentUser.fullName, groupId: selectedGroupId, content: snippet });
+        showToast('💬 AI advice shared with group!');
+        closeAiModal();
+      } else if (selectedFriendId) {
+        const msg = { receiverId: selectedFriendId, content: snippet };
+        await hub.invoke('SendMessage', msg);
+        appendMessage({ senderId: currentUser.id, content: snippet });
+        showToast('💬 AI advice shared with friend!');
+        closeAiModal();
+      } else {
+        showToast('Select a chat to share this feedback!');
+      }
+    };
+
+    function renderMarkdownToHtml(md) {
+      if (!md) return '';
+      return md
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^# (.*$)/gim, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/^- (.*$)/gim, '<li>$1</li>')
+        .replace(/^\* (.*$)/gim, '<li>$1</li>')
+        .replace(/\n\n+/g, '<br><br>')
+        .replace(/<li>(.*)<\/li>/gim, '<ul><li>$1</li></ul>')
+        .replace(/<\/ul>\s*<ul>/gim, '');
+    }
+  </script>
+</body>
+</html>
