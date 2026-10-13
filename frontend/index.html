@@ -1083,7 +1083,12 @@
     let selectedGroupObj = null;
     let typingTimer = null;
 
-    let API_BASE = localStorage.getItem('chat_api_url') || window.location.origin;
+    const DEFAULT_RENDER_URL = 'https://iris-v5ep.onrender.com';
+    let API_BASE = localStorage.getItem('chat_api_url') || (
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? window.location.origin
+        : DEFAULT_RENDER_URL
+    );
     if (API_BASE.endsWith('/')) API_BASE = API_BASE.slice(0, -1);
 
     function updateServerLabel() {
@@ -1095,7 +1100,7 @@
     const configBtn = document.getElementById('btnConfigServer');
     if (configBtn) {
       configBtn.onclick = () => {
-        const customUrl = prompt('Enter backend API URL (e.g. https://your-app.onrender.com):', API_BASE);
+        const customUrl = prompt('Enter backend API URL (e.g. https://iris-v5ep.onrender.com):', API_BASE);
         if (customUrl !== null) {
           const trimmed = customUrl.trim().replace(/\/$/, '');
           if (trimmed) {
@@ -1103,7 +1108,9 @@
             API_BASE = trimmed;
           } else {
             localStorage.removeItem('chat_api_url');
-            API_BASE = window.location.origin;
+            API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+              ? window.location.origin
+              : DEFAULT_RENDER_URL;
           }
           updateServerLabel();
           showToast('Backend URL updated: ' + API_BASE);

@@ -1,10 +1,22 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/(.*)",
+      "destination": "https://iris-v5ep.onrender.com/api/$1"
+    },
+    {
+      "source": "/hubs/(.*)",
+      "destination": "https://iris-v5ep.onrender.com/hubs/$1"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "https://iris-v5ep.onrender.com/uploads/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
