@@ -22,14 +22,17 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final AppUserRepository userRepository;
     private final ChatGroupRepository chatGroupRepository;
+    private final DiscordSyncService discordSyncService;
 
     public ChatService(
             MessageRepository messageRepository,
             AppUserRepository userRepository,
-            ChatGroupRepository chatGroupRepository) {
+            ChatGroupRepository chatGroupRepository,
+            DiscordSyncService discordSyncService) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.chatGroupRepository = chatGroupRepository;
+        this.discordSyncService = discordSyncService;
     }
 
     @Transactional
@@ -106,7 +109,9 @@ public class ChatService {
         if (groupImage != null && !groupImage.isEmpty()) {
             group.setGroupImage(groupImage);
         }
-        return chatGroupRepository.save(group);
+        ChatGroup saved = chatGroupRepository.save(group);
+        discordSyncService.backupGroupToDiscord(saved);
+        return saved;
     }
 
     public List<ChatGroup> getUserGroups(String userId) {
@@ -122,7 +127,8 @@ public class ChatService {
         chatGroupRepository.findById(groupId).ifPresent(group -> {
             if (!group.getMemberIds().contains(userId)) {
                 group.getMemberIds().add(userId);
-                chatGroupRepository.save(group);
+                ChatGroup saved = chatGroupRepository.save(group);
+                discordSyncService.backupGroupToDiscord(saved);
             }
         });
     }
@@ -145,7 +151,8 @@ public class ChatService {
             group.setCreatorId(group.getMemberIds().get(0));
         }
 
-        chatGroupRepository.save(group);
+        ChatGroup saved = chatGroupRepository.save(group);
+        discordSyncService.backupGroupToDiscord(saved);
         return true;
     }
 
@@ -165,7 +172,8 @@ public class ChatService {
         }
 
         if (group.getMemberIds().remove(memberIdToKick)) {
-            chatGroupRepository.save(group);
+            ChatGroup saved = chatGroupRepository.save(group);
+            discordSyncService.backupGroupToDiscord(saved);
             return true;
         }
         return false;

@@ -18,8 +18,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import com.chatapp.dto.OnlineUserDto;
+import com.chatapp.service.DiscordSyncService;
 
 @RestController
 @RequestMapping("/api/account")
@@ -30,18 +33,21 @@ public class AccountController {
     private final JwtUtil jwtUtil;
     private final DiscordColdStorageService discordColdStorageService;
     private final FriendRequestService friendRequestService;
+    private final DiscordSyncService discordSyncService;
 
     public AccountController(
             AppUserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil,
             DiscordColdStorageService discordColdStorageService,
-            FriendRequestService friendRequestService) {
+            FriendRequestService friendRequestService,
+            DiscordSyncService discordSyncService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.discordColdStorageService = discordColdStorageService;
         this.friendRequestService = friendRequestService;
+        this.discordSyncService = discordSyncService;
     }
 
     @PostMapping("/register")
@@ -84,6 +90,7 @@ public class AccountController {
         );
 
         userRepository.save(user);
+        discordSyncService.backupUserToDiscord(user);
 
         return ResponseEntity.ok(ApiResponse.success("", "User created"));
     }
@@ -126,6 +133,23 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(userOpt.get(), "User fetched successfully!"));
     }
 
+    @GetMapping("/users")
+    public ResponseEntity<ApiResponse<List<OnlineUserDto>>> getAllUsers() {
+        List<AppUser> all = userRepository.findAll();
+        List<OnlineUserDto> list = new ArrayList<>();
+        for (AppUser u : all) {
+            OnlineUserDto dto = new OnlineUserDto();
+            dto.setId(u.getId());
+            dto.setUserName(u.getUserName());
+            dto.setFullName(u.getFullName());
+            dto.setProfilePicture(u.getProfileImage());
+            dto.setEmail(u.getEmail());
+            dto.setFriendsId(u.getFriendsId());
+            list.add(dto);
+        }
+        return ResponseEntity.ok(ApiResponse.success(list, "Users fetched successfully!"));
+    }
+
     @PostMapping("/sendfriendrequest")
     public ResponseEntity<ApiResponse<String>> sendFriendRequest(@RequestBody AddFriendDto dto) {
         if (dto == null || dto.getSenderId() == null || dto.getReceiverId() == null) {
@@ -143,6 +167,7 @@ public class AccountController {
         }
 
         friendRequestService.acceptFriendRequest(dto.getSenderId(), dto.getReceiverId());
+        discordSyncService.backupFriendshipToDiscord(dto.getSenderId(), dto.getReceiverId());
         return ResponseEntity.ok(ApiResponse.success("", "sended"));
     }
 

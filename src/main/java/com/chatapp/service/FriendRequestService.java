@@ -32,6 +32,14 @@ public class FriendRequestService {
             FriendsRequest request = new FriendsRequest(senderId, receiverId);
             friendsRequestRepository.save(request);
         }
+
+        // Auto-add receiver to sender's friends list so sender can chat 1v1 immediately
+        userRepository.findById(senderId).ifPresent(sender -> {
+            if (!sender.getFriendsId().contains(receiverId)) {
+                sender.getFriendsId().add(receiverId);
+                userRepository.save(sender);
+            }
+        });
     }
 
     @Transactional
