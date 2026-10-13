@@ -554,6 +554,112 @@
       cursor: pointer;
     }
 
+    .btn-group-action {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s;
+    }
+    .btn-group-action:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #64748b;
+    }
+    .btn-group-leave {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-group-leave:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #fff;
+    }
+    .btn-group-leave-modal {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.2s;
+    }
+    .btn-group-leave-modal:hover {
+      background: #dc2626;
+    }
+    .member-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.85rem;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+    }
+    .member-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+    .member-info img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .member-names {
+      min-width: 0;
+    }
+    .member-names .m-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .member-names .m-user {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .badge-creator {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .btn-kick {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #f87171;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-kick:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
     .action-btn.btn-ai {
       background: linear-gradient(135deg, #8b5cf6, #06b6d4);
       color: #fff;
@@ -831,6 +937,30 @@
     </div>
   </div>
 
+  <!-- GROUP MEMBERS & MANAGEMENT MODAL -->
+  <div id="groupMembersModal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="groupModalTitle">Group Members</h3>
+          <div id="groupModalSubtitle" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;"></div>
+        </div>
+        <button id="btnCloseGroupMembersModal" class="modal-close">&times;</button>
+      </div>
+
+      <div id="groupMembersList" class="group-members-container" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0;">
+        <!-- dynamic member items -->
+      </div>
+
+      <div class="modal-actions" style="justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 1rem; margin-top: 1rem;">
+        <button type="button" id="btnModalLeaveGroup" class="btn-group-leave-modal">
+          🚪 Leave Group
+        </button>
+        <button type="button" id="btnDoneGroupMembers" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- AI DRAWING ASSISTANT MODAL -->
   <div id="aiDrawingModal" class="modal-backdrop hidden">
     <div class="modal-card ai-modal-card">
@@ -1006,6 +1136,10 @@
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="activeChatName">Chat Name</div>
           <div style="font-size: 0.8rem; color: var(--text-muted);" id="activeChatStatus">Online</div>
+        </div>
+        <div class="group-header-actions hidden" id="groupHeaderActions" style="display:inline-flex; align-items:center; gap:0.4rem; margin-right: 0.4rem;">
+          <button class="btn-group-action" id="btnViewGroupMembers" title="View group members & kick options">👥 Members</button>
+          <button class="btn-group-action btn-group-leave" id="btnLeaveGroupHeader" title="Leave this group">🚪 Leave</button>
         </div>
         <button class="btn-draw-together" id="btnToggleCanvas">
           <span>🎨</span> <span id="btnDrawText">Live Canvas</span>
@@ -1417,7 +1551,12 @@
       avatarEl.src = group.groupImage || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=100&h=100&fit=crop';
       document.getElementById('activeChatName').innerText = group.name;
       const count = (group.memberIds && group.memberIds.length) || 1;
-      document.getElementById('activeChatStatus').innerText = `Group • ${count} members`;
+      const statusEl = document.getElementById('activeChatStatus');
+      statusEl.innerHTML = `Group • <b>${count} member${count > 1 ? 's' : ''}</b> <span style="font-size:0.75rem; text-decoration:underline; opacity:0.8;">(View)</span>`;
+      statusEl.style.cursor = 'pointer';
+      statusEl.onclick = openGroupMembersModal;
+
+      document.getElementById('groupHeaderActions').classList.remove('hidden');
 
       renderGroups();
       renderUsers();
@@ -1498,6 +1637,165 @@
         showToast('Failed to create group: ' + err.message);
       }
     };
+
+    // ============================================
+    // GROUP MEMBERS & LEAVE / KICK
+    // ============================================
+    let currentGroupMembers = [];
+
+    async function openGroupMembersModal() {
+      if (!selectedGroupId || !selectedGroupObj) return;
+      const modal = document.getElementById('groupMembersModal');
+      const listEl = document.getElementById('groupMembersList');
+      document.getElementById('groupModalTitle').innerText = selectedGroupObj.name;
+      document.getElementById('groupModalSubtitle').innerText = 'Loading group members...';
+      listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:1rem; text-align:center;">Loading members...</div>';
+      modal.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/${selectedGroupId}/members`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          currentGroupMembers = data.data || [];
+          renderGroupMembersModalList();
+        } else {
+          listEl.innerHTML = '<div style="color:#ef4444; font-size:0.85rem; padding:1rem; text-align:center;">Failed to load members</div>';
+        }
+      } catch (err) {
+        console.error('Error loading group members:', err);
+        listEl.innerHTML = '<div style="color:#ef4444; font-size:0.85rem; padding:1rem; text-align:center;">Failed to load members</div>';
+      }
+    }
+
+    function renderGroupMembersModalList() {
+      const listEl = document.getElementById('groupMembersList');
+      listEl.innerHTML = '';
+
+      const isCurrentUserManager = currentUser && selectedGroupObj && (currentUser.id === selectedGroupObj.creatorId);
+      const total = currentGroupMembers.length;
+      document.getElementById('groupModalSubtitle').innerText = `${total} member${total !== 1 ? 's' : ''} ${isCurrentUserManager ? '• 👑 You are Creator (can kick members)' : ''}`;
+
+      if (currentGroupMembers.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:1rem; text-align:center;">No members found</div>';
+        return;
+      }
+
+      currentGroupMembers.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'member-item';
+
+        const isMe = currentUser && m.id === currentUser.id;
+        const canKickThisMember = isCurrentUserManager && !isMe;
+
+        item.innerHTML = `
+          <div class="member-info">
+            <img src="${m.profileImage || 'https://via.placeholder.com/36'}" alt="${escapeHtml(m.fullName)}">
+            <div class="member-names">
+              <div class="m-name">
+                ${escapeHtml(m.fullName)}
+                ${isMe ? '<span style="font-size:0.75rem; color:var(--primary); font-weight:600;">(You)</span>' : ''}
+                ${m.isCreator ? '<span class="badge-creator">👑 Creator</span>' : ''}
+              </div>
+              <div class="m-user">@${escapeHtml(m.userName)}</div>
+            </div>
+          </div>
+          <div class="member-actions">
+            ${canKickThisMember ? `<button class="btn-kick" data-user-id="${m.id}">❌ Kick</button>` : ''}
+          </div>
+        `;
+
+        if (canKickThisMember) {
+          const kickBtn = item.querySelector('.btn-kick');
+          kickBtn.onclick = () => kickGroupMember(m.id, m.fullName);
+        }
+
+        listEl.appendChild(item);
+      });
+    }
+
+    async function kickGroupMember(memberId, memberName) {
+      if (!confirm(`Are you sure you want to remove ${memberName} from this group?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/kick-member`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            groupId: selectedGroupId,
+            userId: memberId
+          })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Removed ${memberName} from the group`);
+          if (selectedGroupObj && selectedGroupObj.memberIds) {
+            selectedGroupObj.memberIds = selectedGroupObj.memberIds.filter(id => id !== memberId);
+          }
+          currentGroupMembers = currentGroupMembers.filter(m => m.id !== memberId);
+          renderGroupMembersModalList();
+          const count = (selectedGroupObj.memberIds && selectedGroupObj.memberIds.length) || currentGroupMembers.length;
+          const statusEl = document.getElementById('activeChatStatus');
+          statusEl.innerHTML = `Group • <b>${count} member${count > 1 ? 's' : ''}</b> <span style="font-size:0.75rem; text-decoration:underline; opacity:0.8;">(View)</span>`;
+          await loadMyGroups();
+        } else {
+          showToast(data.message || 'Failed to remove member');
+        }
+      } catch (err) {
+        console.error('Error kicking member:', err);
+        showToast('Failed to remove member');
+      }
+    }
+
+    async function leaveCurrentGroup() {
+      if (!selectedGroupId || !selectedGroupObj) return;
+      const groupName = selectedGroupObj.name || 'this group';
+      if (!confirm(`Are you sure you want to leave "${groupName}"?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/leave`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ groupId: selectedGroupId })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Left ${groupName}`);
+          closeGroupMembersModal();
+          currentChatType = null;
+          selectedGroupId = null;
+          selectedGroupObj = null;
+          document.body.classList.remove('chat-open');
+          document.getElementById('chatHeader').classList.add('hidden');
+          document.getElementById('chatInputBar').classList.add('hidden');
+          document.getElementById('chatMessages').innerHTML = '';
+          closeCanvasPanel();
+          await loadMyGroups();
+        } else {
+          showToast(data.message || 'Failed to leave group');
+        }
+      } catch (err) {
+        console.error('Error leaving group:', err);
+        showToast('Failed to leave group');
+      }
+    }
+
+    function closeGroupMembersModal() {
+      document.getElementById('groupMembersModal').classList.add('hidden');
+    }
+
+    document.getElementById('btnViewGroupMembers').onclick = openGroupMembersModal;
+    document.getElementById('btnLeaveGroupHeader').onclick = leaveCurrentGroup;
+    document.getElementById('btnCloseGroupMembersModal').onclick = closeGroupMembersModal;
+    document.getElementById('btnDoneGroupMembers').onclick = closeGroupMembersModal;
+    document.getElementById('btnModalLeaveGroup').onclick = leaveCurrentGroup;
 
     // ============================================
     // USERS & FRIENDS
@@ -1598,7 +1896,12 @@
       document.getElementById('chatInputBar').classList.remove('hidden');
       document.getElementById('activeChatAvatar').src = friend.profilePicture || 'https://via.placeholder.com/44';
       document.getElementById('activeChatName').innerText = friend.fullName;
-      document.getElementById('activeChatStatus').innerText = friend.isOnline ? 'Online' : 'Offline';
+      const statusEl = document.getElementById('activeChatStatus');
+      statusEl.innerText = friend.isOnline ? 'Online' : 'Offline';
+      statusEl.style.cursor = 'default';
+      statusEl.onclick = null;
+
+      document.getElementById('groupHeaderActions').classList.add('hidden');
 
       renderGroups();
       renderUsers();

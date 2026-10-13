@@ -128,6 +128,70 @@ public class ChatService {
     }
 
     @Transactional
+    public boolean leaveGroup(String groupId, String userId) {
+        Optional<ChatGroup> opt = chatGroupRepository.findById(groupId);
+        if (opt.isEmpty()) return false;
+        ChatGroup group = opt.get();
+        if (!group.getMemberIds().contains(userId)) return false;
+
+        group.getMemberIds().remove(userId);
+        if (group.getMemberIds().isEmpty()) {
+            chatGroupRepository.delete(group);
+            return true;
+        }
+
+        // If creator left, transfer creator role to the next member
+        if (userId.equals(group.getCreatorId())) {
+            group.setCreatorId(group.getMemberIds().get(0));
+        }
+
+        chatGroupRepository.save(group);
+        return true;
+    }
+
+    @Transactional
+    public boolean kickMemberFromGroup(String groupId, String requesterId, String memberIdToKick) {
+        Optional<ChatGroup> opt = chatGroupRepository.findById(groupId);
+        if (opt.isEmpty()) return false;
+        ChatGroup group = opt.get();
+
+        // Only group creator can kick members
+        if (!requesterId.equals(group.getCreatorId())) {
+            throw new IllegalArgumentException("Only the group creator can remove members");
+        }
+
+        if (requesterId.equals(memberIdToKick)) {
+            throw new IllegalArgumentException("Creator cannot kick themselves. Use leave group instead.");
+        }
+
+        if (group.getMemberIds().remove(memberIdToKick)) {
+            chatGroupRepository.save(group);
+            return true;
+        }
+        return false;
+    }
+
+    public List<com.chatapp.dto.GroupMemberDto> getGroupMembers(String groupId) {
+        Optional<ChatGroup> opt = chatGroupRepository.findById(groupId);
+        if (opt.isEmpty()) return List.of();
+        ChatGroup group = opt.get();
+
+        List<com.chatapp.dto.GroupMemberDto> members = new ArrayList<>();
+        for (String memberId : group.getMemberIds()) {
+            Optional<AppUser> userOpt = userRepository.findById(memberId);
+            if (userOpt.isPresent()) {
+                AppUser u = userOpt.get();
+                boolean isCreator = memberId.equals(group.getCreatorId());
+                members.add(new com.chatapp.dto.GroupMemberDto(u.getId(), u.getFullName(), u.getUserName(), u.getProfileImage(), isCreator));
+            } else {
+                boolean isCreator = memberId.equals(group.getCreatorId());
+                members.add(new com.chatapp.dto.GroupMemberDto(memberId, "User", memberId, null, isCreator));
+            }
+        }
+        return members;
+    }
+
+    @Transactional
     public Message saveGroupMessage(String senderId, String groupId, String content) {
         String senderName = userRepository.findById(senderId)
                 .map(AppUser::getFullName)
