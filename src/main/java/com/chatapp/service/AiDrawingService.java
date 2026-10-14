@@ -142,14 +142,93 @@ public class AiDrawingService {
         return null;
     }
 
-    private String callOpenRouter(String prompt, AiDrawingRequestDto request) throws Exception {
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", openrouterModel);
-        body.put("temperature", 0.7);
-        body.put("max_tokens", 850);
+    public Map<String, Object> chat(String userMessage, List<Map<String, String>> history) {
+        if (userMessage == null || userMessage.trim().isEmpty()) {
+            return Map.of("reply", "Please provide a message.", "provider", "System", "success", false);
+        }
 
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "user", "content", prompt));
+        messages.add(Map.of("role", "system", "content",
+                "You are IRIS AI, an intelligent, helpful, and creative assistant built into the IRIS Collaboration Platform. " +
+                "You can help with coding, architecture, UI/UX design, brainstorming, technical explanations, and general questions. " +
+                "Format your answers with clean Markdown, clear structure, and syntax-highlighted code blocks where appropriate."));
+
+        if (history != null) {
+            for (Map<String, String> h : history) {
+                if (h.containsKey("role") && h.containsKey("content")) {
+                    messages.add(Map.of("role", h.get("role"), "content", h.get("content")));
+                }
+            }
+        }
+        messages.add(Map.of("role", "user", "content", userMessage.trim()));
+
+        // 1. Try Groq
+        if (groqApiKey != null && !groqApiKey.isBlank()) {
+            try {
+                String reply = callChatGroq(messages);
+                if (reply != null && !reply.isBlank()) {
+                    return Map.of("reply", reply, "provider", "Groq (" + groqModel + ")", "success", true);
+                }
+            } catch (Exception e) {
+                log.warn("Groq chat failed: {}", e.getMessage());
+            }
+        }
+
+        // 2. Try OpenRouter
+        if (openrouterApiKey != null && !openrouterApiKey.isBlank()) {
+            try {
+                String reply = callChatOpenRouter(messages);
+                if (reply != null && !reply.isBlank()) {
+                    return Map.of("reply", reply, "provider", "OpenRouter (" + openrouterModel + ")", "success", true);
+                }
+            } catch (Exception e) {
+                log.warn("OpenRouter chat failed: {}", e.getMessage());
+            }
+        }
+
+        // 3. Heuristic / Smart offline fallback
+        String fallback = "### 🤖 IRIS AI Assistant\n" +
+                "I am IRIS AI. I received your request: \"" + userMessage + "\".\n\n" +
+                "- **Live AI Mode**: Connected to IRIS local intelligence.\n" +
+                "- **Tip**: You can ask questions about app features, live collaboration, code architecture, or design ideas!";
+        return Map.of("reply", fallback, "provider", "IRIS Assistant (Offline)", "success", true);
+    }
+
+    private String callChatGroq(List<Map<String, Object>> messages) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", groqModel != null && !groqModel.isBlank() ? groqModel : "llama-3.1-8b-instant");
+        body.put("temperature", 0.7);
+        body.put("max_tokens", 1024);
+        body.put("messages", messages);
+
+        String jsonPayload = objectMapper.writeValueAsString(body);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
+                .header("Authorization", "Bearer " + groqApiKey)
+                .header("Content-Type", "application/json; charset=utf-8")
+                .timeout(Duration.ofSeconds(20))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload, StandardCharsets.UTF_8))
+                .build();
+
+        HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (resp.statusCode() == 200) {
+            JsonNode root = objectMapper.readTree(resp.body());
+            JsonNode choices = root.get("choices");
+            if (choices != null && choices.isArray() && choices.size() > 0) {
+                return choices.get(0).path("message").path("content").asText();
+            }
+        } else {
+            log.warn("Groq chat returned status: {} body: {}", resp.statusCode(), resp.body());
+        }
+        return null;
+    }
+
+    private String callChatOpenRouter(List<Map<String, Object>> messages) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", openrouterModel != null && !openrouterModel.isBlank() ? openrouterModel : "openrouter/free");
+        body.put("temperature", 0.7);
+        body.put("max_tokens", 1024);
         body.put("messages", messages);
 
         String jsonPayload = objectMapper.writeValueAsString(body);
@@ -158,7 +237,7 @@ public class AiDrawingService {
                 .uri(URI.create("https://openrouter.ai/api/v1/chat/completions"))
                 .header("Authorization", "Bearer " + openrouterApiKey)
                 .header("Content-Type", "application/json; charset=utf-8")
-                .timeout(Duration.ofSeconds(15))
+                .timeout(Duration.ofSeconds(20))
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload, StandardCharsets.UTF_8))
                 .build();
 

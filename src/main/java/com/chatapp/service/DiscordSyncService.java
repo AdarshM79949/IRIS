@@ -27,6 +27,7 @@ public class DiscordSyncService {
     private static final String USER_PREFIX = "[IRIS_DATA_SYNC_USER] ";
     private static final String GROUP_PREFIX = "[IRIS_DATA_SYNC_GROUP] ";
     private static final String FRIEND_PREFIX = "[IRIS_DATA_SYNC_FRIEND] ";
+    private static final String MESSAGE_PREFIX = "[IRIS_DATA_SYNC_MSG] ";
 
     @Value("${app.discord.bot-token:${DISCORD_BOT_TOKEN:${BOT1_TOKEN:}}}")
     private String botToken;
@@ -36,12 +37,17 @@ public class DiscordSyncService {
 
     private final AppUserRepository userRepository;
     private final ChatGroupRepository groupRepository;
+    private final com.chatapp.repository.MessageRepository messageRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    public DiscordSyncService(AppUserRepository userRepository, ChatGroupRepository groupRepository) {
+    public DiscordSyncService(
+            AppUserRepository userRepository,
+            ChatGroupRepository groupRepository,
+            com.chatapp.repository.MessageRepository messageRepository) {
         this.userRepository = userRepository;
         this.groupRepository = groupRepository;
+        this.messageRepository = messageRepository;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
     }
@@ -59,38 +65,57 @@ public class DiscordSyncService {
     }
 
     /**
-     * Called on application startup: loads users, passwords, and groups from Discord cloud storage.
+     * Called on application startup: loads users, passwords, groups, friendships, and messages from Discord cloud storage.
      */
     @EventListener(ApplicationReadyEvent.class)
-    public void syncFromDiscordOnStartup() {
+    public synchronized void syncFromDiscordOnStartup() {
         if (!isConfigured()) {
             log.info("Discord cloud persistence not configured (missing token or channel ID)");
             return;
         }
 
         try {
-            log.info("Syncing cloud users and data from Discord channel {}", channelId);
-            String url = "https://discord.com/api/v10/channels/" + channelId + "/messages?limit=100";
-            HttpEntity<Void> request = new HttpEntity<>(createHeaders());
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+            log.info("Syncing cloud users, groups, friendships, and messages from Discord channel {}", channelId);
+            List<JsonNode> allRawMessages = new ArrayList<>();
+            String beforeId = null;
 
-            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                log.warn("Could not fetch messages from Discord: {}", response.getStatusCode());
+            // Fetch up to 4 pages (400 messages) to restore all recent chat history and state
+            for (int page = 0; page < 4; page++) {
+                String url = "https://discord.com/api/v10/channels/" + channelId + "/messages?limit=100"
+                        + (beforeId != null ? "&before=" + beforeId : "");
+                HttpEntity<Void> request = new HttpEntity<>(createHeaders());
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+
+                if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                    break;
+                }
+
+                JsonNode msgs = objectMapper.readTree(response.getBody());
+                if (!msgs.isArray() || msgs.isEmpty()) {
+                    break;
+                }
+
+                for (JsonNode m : msgs) {
+                    allRawMessages.add(m);
+                }
+
+                beforeId = msgs.get(msgs.size() - 1).get("id").asText();
+                if (msgs.size() < 100) break;
+            }
+
+            if (allRawMessages.isEmpty()) {
+                log.info("No cloud messages found in Discord channel {}", channelId);
                 return;
             }
 
-            JsonNode messages = objectMapper.readTree(response.getBody());
-            if (!messages.isArray()) return;
-
             // Process in reverse chronological order (oldest to newest)
-            List<JsonNode> msgList = new ArrayList<>();
-            messages.forEach(msgList::add);
-            Collections.reverse(msgList);
+            Collections.reverse(allRawMessages);
 
             int restoredUsers = 0;
             int restoredGroups = 0;
+            int restoredMessages = 0;
 
-            for (JsonNode msgNode : msgList) {
+            for (JsonNode msgNode : allRawMessages) {
                 String content = msgNode.has("content") ? msgNode.get("content").asText() : "";
                 if (content.startsWith(USER_PREFIX)) {
                     String json = content.substring(USER_PREFIX.length()).trim();
@@ -105,10 +130,15 @@ public class DiscordSyncService {
                 } else if (content.startsWith(FRIEND_PREFIX)) {
                     String json = content.substring(FRIEND_PREFIX.length()).trim();
                     restoreFriendFromJson(json);
+                } else if (content.startsWith(MESSAGE_PREFIX)) {
+                    String json = content.substring(MESSAGE_PREFIX.length()).trim();
+                    if (restoreMessageFromJson(json)) {
+                        restoredMessages++;
+                    }
                 }
             }
 
-            log.info("Discord cloud restore completed: {} users, {} groups synced", restoredUsers, restoredGroups);
+            log.info("Discord cloud restore completed: {} users, {} groups, {} messages synced", restoredUsers, restoredGroups, restoredMessages);
         } catch (Exception e) {
             log.error("Failed to sync cloud state from Discord: {}", e.getMessage());
         }
@@ -260,6 +290,65 @@ public class DiscordSyncService {
                 log.warn("Failed to backup friendship to Discord: {}", e.getMessage());
             }
         }).start();
+    }
+
+    public void backupMessageToDiscord(com.chatapp.model.Message message) {
+        if (!isConfigured() || message == null) return;
+        new Thread(() -> {
+            try {
+                Map<String, Object> map = new HashMap<>();
+                map.put("senderId", message.getSenderId());
+                map.put("receiverId", message.getReceiverId());
+                map.put("groupId", message.getGroupId());
+                map.put("senderName", message.getSenderName());
+                map.put("createdDate", message.getCreatedDate() != null ? message.getCreatedDate().toString() : java.time.Instant.now().toString());
+
+                String content = message.getContent();
+                if (content != null && content.length() > 1750) {
+                    content = content.substring(0, 1750);
+                }
+                map.put("content", content);
+
+                String payload = MESSAGE_PREFIX + objectMapper.writeValueAsString(map);
+                postMessageToDiscord(payload);
+            } catch (Exception e) {
+                log.warn("Failed to backup message to Discord: {}", e.getMessage());
+            }
+        }).start();
+    }
+
+    private boolean restoreMessageFromJson(String json) {
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            String senderId = node.has("senderId") && !node.get("senderId").isNull() ? node.get("senderId").asText() : null;
+            String receiverId = node.has("receiverId") && !node.get("receiverId").isNull() ? node.get("receiverId").asText() : null;
+            String groupId = node.has("groupId") && !node.get("groupId").isNull() ? node.get("groupId").asText() : null;
+            String senderName = node.has("senderName") && !node.get("senderName").isNull() ? node.get("senderName").asText() : null;
+            String content = node.has("content") ? node.get("content").asText() : "";
+            java.time.Instant createdDate = node.has("createdDate") ? java.time.Instant.parse(node.get("createdDate").asText()) : java.time.Instant.now();
+
+            if (content.isEmpty() || senderId == null) {
+                return false;
+            }
+
+            boolean exists = messageRepository.existsSimilar(senderId, receiverId, groupId, createdDate, content);
+            if (!exists) {
+                com.chatapp.model.Message msg = new com.chatapp.model.Message();
+                msg.setSenderId(senderId);
+                msg.setReceiverId(receiverId);
+                msg.setGroupId(groupId);
+                msg.setSenderName(senderName);
+                msg.setContent(content);
+                msg.setCreatedDate(createdDate);
+                msg.setRead(true);
+                messageRepository.save(msg);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            log.warn("Failed to restore message from Discord JSON: {}", e.getMessage());
+            return false;
+        }
     }
 
     private void postMessageToDiscord(String text) {

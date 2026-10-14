@@ -203,7 +203,11 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode drawData = args.get(0);
                     String receiverId = drawData.has("receiverId") ? drawData.get("receiverId").asText() : "";
                     if (!receiverId.isEmpty()) {
-                        sendToUser(receiverId, "ReceiveCanvasDraw", drawData);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = objectMapper.convertValue(drawData, Map.class);
+                        payload.put("senderId", currentUserId);
+                        payload.put("senderName", currentUserName);
+                        sendToUser(receiverId, "ReceiveCanvasDraw", payload);
                     }
                 }
             }
@@ -212,7 +216,10 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode clearData = args.get(0);
                     String receiverId = clearData.has("receiverId") ? clearData.get("receiverId").asText() : "";
                     if (!receiverId.isEmpty()) {
-                        sendToUser(receiverId, "ReceiveCanvasClear", Map.of("senderId", currentUserId, "senderName", currentUserName));
+                        sendToUser(receiverId, "ReceiveCanvasClear", Map.of(
+                            "senderId", currentUserId,
+                            "senderName", currentUserName
+                        ));
                     }
                 }
             }
@@ -221,7 +228,11 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode cursorData = args.get(0);
                     String receiverId = cursorData.has("receiverId") ? cursorData.get("receiverId").asText() : "";
                     if (!receiverId.isEmpty()) {
-                        sendToUser(receiverId, "ReceiveCanvasCursor", cursorData);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = objectMapper.convertValue(cursorData, Map.class);
+                        payload.put("senderId", currentUserId);
+                        payload.put("senderName", currentUserName);
+                        sendToUser(receiverId, "ReceiveCanvasCursor", payload);
                     }
                 }
             }
@@ -230,7 +241,11 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode toggleData = args.get(0);
                     String receiverId = toggleData.has("receiverId") ? toggleData.get("receiverId").asText() : "";
                     if (!receiverId.isEmpty()) {
-                        sendToUser(receiverId, "ReceiveToggleCanvas", toggleData);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = objectMapper.convertValue(toggleData, Map.class);
+                        payload.put("senderId", currentUserId);
+                        payload.put("senderName", currentUserName);
+                        sendToUser(receiverId, "ReceiveToggleCanvas", payload);
                     }
                 }
             }
@@ -260,7 +275,11 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode drawData = args.get(0);
                     String groupId = drawData.has("groupId") ? drawData.get("groupId").asText() : "";
                     if (!groupId.isEmpty()) {
-                        sendToGroupExcept(groupId, session.getId(), "ReceiveGroupCanvasDraw", drawData);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = objectMapper.convertValue(drawData, Map.class);
+                        payload.put("senderId", currentUserId);
+                        payload.put("senderName", currentUserName);
+                        sendToGroupExcept(groupId, session.getId(), "ReceiveGroupCanvasDraw", payload);
                     }
                 }
             }
@@ -269,7 +288,11 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode clearData = args.get(0);
                     String groupId = clearData.has("groupId") ? clearData.get("groupId").asText() : "";
                     if (!groupId.isEmpty()) {
-                        sendToGroupExcept(groupId, session.getId(), "ReceiveGroupCanvasClear", clearData);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = objectMapper.convertValue(clearData, Map.class);
+                        payload.put("senderId", currentUserId);
+                        payload.put("senderName", currentUserName);
+                        sendToGroupExcept(groupId, session.getId(), "ReceiveGroupCanvasClear", payload);
                     }
                 }
             }
@@ -278,7 +301,11 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                     JsonNode cursorData = args.get(0);
                     String groupId = cursorData.has("groupId") ? cursorData.get("groupId").asText() : "";
                     if (!groupId.isEmpty()) {
-                        sendToGroupExcept(groupId, session.getId(), "ReceiveGroupCanvasCursor", cursorData);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> payload = objectMapper.convertValue(cursorData, Map.class);
+                        payload.put("senderId", currentUserId);
+                        payload.put("senderName", currentUserName);
+                        sendToGroupExcept(groupId, session.getId(), "ReceiveGroupCanvasCursor", payload);
                     }
                 }
             }
@@ -350,7 +377,7 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void broadcastOnlineUsersToAll() {
+    public void broadcastOnlineUsersToAll() {
         for (Map.Entry<String, WebSocketSession> entry : connectionSessions.entrySet()) {
             WebSocketSession session = entry.getValue();
             if (session.isOpen()) {
@@ -365,7 +392,7 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private List<OnlineUserDto> getAllUsersFor(String currentUserId) {
+    public List<OnlineUserDto> getAllUsersFor(String currentUserId) {
         List<AppUser> allUsers = userRepository.findAll();
         List<OnlineUserDto> dtoList = new ArrayList<>();
 
@@ -404,7 +431,7 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void sendToUser(String userIdOrName, String target, Object payload) {
+    public void sendToUser(String userIdOrName, String target, Object payload) {
         for (Map.Entry<String, WebSocketSession> entry : connectionSessions.entrySet()) {
             String connId = entry.getKey();
             WebSocketSession session = entry.getValue();

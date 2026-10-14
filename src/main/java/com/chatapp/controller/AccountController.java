@@ -34,6 +34,7 @@ public class AccountController {
     private final DiscordColdStorageService discordColdStorageService;
     private final FriendRequestService friendRequestService;
     private final DiscordSyncService discordSyncService;
+    private final com.chatapp.websocket.SignalRChatWebSocketHandler signalRHandler;
 
     public AccountController(
             AppUserRepository userRepository,
@@ -41,13 +42,15 @@ public class AccountController {
             JwtUtil jwtUtil,
             DiscordColdStorageService discordColdStorageService,
             FriendRequestService friendRequestService,
-            DiscordSyncService discordSyncService) {
+            DiscordSyncService discordSyncService,
+            @org.springframework.context.annotation.Lazy com.chatapp.websocket.SignalRChatWebSocketHandler signalRHandler) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.discordColdStorageService = discordColdStorageService;
         this.friendRequestService = friendRequestService;
         this.discordSyncService = discordSyncService;
+        this.signalRHandler = signalRHandler;
     }
 
     @PostMapping("/register")
@@ -156,8 +159,17 @@ public class AccountController {
             return ResponseEntity.badRequest().body(ApiResponse.failure("Invalid Id's details"));
         }
 
-        friendRequestService.sendFriendRequest(dto.getSenderId(), dto.getReceiverId());
-        return ResponseEntity.ok(ApiResponse.success("", "sended"));
+        boolean sent = friendRequestService.sendFriendRequest(dto.getSenderId(), dto.getReceiverId());
+        if (sent) {
+            String senderName = userRepository.findById(dto.getSenderId()).map(AppUser::getFullName).orElse("Someone");
+            signalRHandler.sendToUser(dto.getReceiverId(), "ReceiveFriendRequest", java.util.Map.of(
+                    "senderId", dto.getSenderId(),
+                    "senderName", senderName,
+                    "receiverId", dto.getReceiverId()
+            ));
+            return ResponseEntity.ok(ApiResponse.success("", "Friend request sent"));
+        }
+        return ResponseEntity.ok(ApiResponse.success("", "Friend request already sent or already friends"));
     }
 
     @PostMapping("/acceptrequest")
@@ -166,21 +178,52 @@ public class AccountController {
             return ResponseEntity.badRequest().body(ApiResponse.failure("Invalid Id's details"));
         }
 
-        friendRequestService.acceptFriendRequest(dto.getSenderId(), dto.getReceiverId());
-        discordSyncService.backupFriendshipToDiscord(dto.getSenderId(), dto.getReceiverId());
-        return ResponseEntity.ok(ApiResponse.success("", "sended"));
+        boolean accepted = friendRequestService.acceptFriendRequest(dto.getSenderId(), dto.getReceiverId());
+        if (accepted) {
+            discordSyncService.backupFriendshipToDiscord(dto.getSenderId(), dto.getReceiverId());
+            signalRHandler.sendToUser(dto.getSenderId(), "FriendRequestAccepted", java.util.Map.of(
+                    "friendId", dto.getReceiverId(),
+                    "senderId", dto.getSenderId()
+            ));
+            signalRHandler.sendToUser(dto.getReceiverId(), "FriendRequestAccepted", java.util.Map.of(
+                    "friendId", dto.getSenderId(),
+                    "senderId", dto.getSenderId()
+            ));
+            signalRHandler.broadcastOnlineUsersToAll();
+        }
+        return ResponseEntity.ok(ApiResponse.success("", "Friend request accepted"));
     }
 
-    @GetMapping("/firendsrequestsforme")
+    @PostMapping({"/rejectrequest", "/rejectfriendrequest"})
+    public ResponseEntity<ApiResponse<String>> rejectRequest(@RequestBody AddFriendDto dto) {
+        if (dto == null || dto.getSenderId() == null || dto.getReceiverId() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.failure("Invalid Id's details"));
+        }
+
+        friendRequestService.rejectFriendRequest(dto.getSenderId(), dto.getReceiverId());
+        signalRHandler.sendToUser(dto.getSenderId(), "FriendRequestRejected", java.util.Map.of(
+                "receiverId", dto.getReceiverId()
+        ));
+        return ResponseEntity.ok(ApiResponse.success("", "Friend request rejected"));
+    }
+
+    @GetMapping({"/firendsrequestsforme", "/friendrequestsforme"})
     public ResponseEntity<ApiResponse<List<FriendsRequest>>> getRequestsForMe(@RequestParam("receiverId") String receiverId) {
         List<FriendsRequest> requests = friendRequestService.getRequestsForMe(receiverId);
         return ResponseEntity.ok(ApiResponse.success(requests, "User fetched successfully!"));
     }
 
-    @GetMapping("/firendsrequestssendbyme")
+    @GetMapping({"/firendsrequestssendbyme", "/friendrequestssendbyme"})
     public ResponseEntity<ApiResponse<List<FriendsRequest>>> getRequestsSendByMe(@RequestParam("senderId") String senderId) {
         List<FriendsRequest> requests = friendRequestService.getRequestsSendByMe(senderId);
         return ResponseEntity.ok(ApiResponse.success(requests, "User fetched successfully!"));
+    }
+
+    @PostMapping("/sync-discord")
+    public ResponseEntity<ApiResponse<String>> syncDiscord() {
+        discordSyncService.syncFromDiscordOnStartup();
+        signalRHandler.broadcastOnlineUsersToAll();
+        return ResponseEntity.ok(ApiResponse.success("Synced", "Discord cloud sync completed"));
     }
 
     @PostMapping("/upload")

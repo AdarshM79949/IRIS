@@ -68,6 +68,15 @@ public class ChatService {
                 PageRequest.of(pageIndex, pageSize)
         );
 
+        if (messages.isEmpty() && page <= 1 && messageRepository.count() == 0) {
+            discordSyncService.syncFromDiscordOnStartup();
+            messages = messageRepository.findConversation(
+                    currentUserId, currentUserName,
+                    recipientId, recipientUserName,
+                    PageRequest.of(pageIndex, pageSize)
+            );
+        }
+
         messageRepository.markAsRead(currentUserId, currentUserName, recipientId, recipientUserName);
 
         List<MessageResponseDto> dtos = new ArrayList<>();
@@ -93,7 +102,9 @@ public class ChatService {
         message.setContent(content);
         message.setCreatedDate(Instant.now());
         message.setRead(false);
-        return messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+        discordSyncService.backupMessageToDiscord(saved);
+        return saved;
     }
 
     public int getUnreadCount(String currentUserId, String otherUserId) {
@@ -212,13 +223,20 @@ public class ChatService {
         message.setContent(content);
         message.setCreatedDate(Instant.now());
         message.setRead(true);
-        return messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+        discordSyncService.backupMessageToDiscord(saved);
+        return saved;
     }
 
     @Transactional(readOnly = true)
     public List<MessageResponseDto> loadGroupMessages(String groupId, int page, int pageSize) {
         int pageIndex = Math.max(0, page - 1);
         List<Message> messages = messageRepository.findGroupMessages(groupId, PageRequest.of(pageIndex, pageSize));
+
+        if (messages.isEmpty() && page <= 1 && messageRepository.count() == 0) {
+            discordSyncService.syncFromDiscordOnStartup();
+            messages = messageRepository.findGroupMessages(groupId, PageRequest.of(pageIndex, pageSize));
+        }
 
         List<MessageResponseDto> dtos = new ArrayList<>();
         for (Message msg : messages) {

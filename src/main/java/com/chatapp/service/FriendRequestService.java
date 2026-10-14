@@ -22,30 +22,35 @@ public class FriendRequestService {
     }
 
     @Transactional
-    public void sendFriendRequest(String senderId, String receiverId) {
+    public boolean sendFriendRequest(String senderId, String receiverId) {
         if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
-            return;
+            return false;
         }
 
-        Optional<FriendsRequest> existing = friendsRequestRepository.findExistingRequest(senderId, receiverId);
+        Optional<AppUser> senderOpt = userRepository.findById(senderId);
+        Optional<AppUser> receiverOpt = userRepository.findById(receiverId);
+        if (senderOpt.isEmpty() || receiverOpt.isEmpty()) {
+            return false;
+        }
+
+        AppUser sender = senderOpt.get();
+        if (sender.getFriendsId().contains(receiverId)) {
+            return false; // Already friends
+        }
+
+        List<FriendsRequest> existing = friendsRequestRepository.findRequestsBetween(senderId, receiverId);
         if (existing.isEmpty()) {
             FriendsRequest request = new FriendsRequest(senderId, receiverId);
             friendsRequestRepository.save(request);
+            return true;
         }
-
-        // Auto-add receiver to sender's friends list so sender can chat 1v1 immediately
-        userRepository.findById(senderId).ifPresent(sender -> {
-            if (!sender.getFriendsId().contains(receiverId)) {
-                sender.getFriendsId().add(receiverId);
-                userRepository.save(sender);
-            }
-        });
+        return false;
     }
 
     @Transactional
-    public void acceptFriendRequest(String senderId, String receiverId) {
-        Optional<FriendsRequest> existing = friendsRequestRepository.findExistingRequest(senderId, receiverId);
-        if (existing.isPresent()) {
+    public boolean acceptFriendRequest(String senderId, String receiverId) {
+        List<FriendsRequest> existing = friendsRequestRepository.findRequestsBetween(senderId, receiverId);
+        if (!existing.isEmpty()) {
             Optional<AppUser> senderOpt = userRepository.findById(senderId);
             Optional<AppUser> receiverOpt = userRepository.findById(receiverId);
 
@@ -63,9 +68,21 @@ public class FriendRequestService {
                 userRepository.save(sender);
                 userRepository.save(receiver);
 
-                friendsRequestRepository.delete(existing.get());
+                friendsRequestRepository.deleteAll(existing);
+                return true;
             }
         }
+        return false;
+    }
+
+    @Transactional
+    public boolean rejectFriendRequest(String senderId, String receiverId) {
+        List<FriendsRequest> existing = friendsRequestRepository.findRequestsBetween(senderId, receiverId);
+        if (!existing.isEmpty()) {
+            friendsRequestRepository.deleteAll(existing);
+            return true;
+        }
+        return false;
     }
 
     public List<FriendsRequest> getRequestsForMe(String receiverId) {

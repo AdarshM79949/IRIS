@@ -51,4 +51,13 @@ public interface MessageRepository extends JpaRepository<Message, Integer> {
 
     @Query("SELECT m FROM Message m WHERE m.groupId = :groupId ORDER BY m.createdDate ASC")
     List<Message> findGroupMessages(@Param("groupId") String groupId, Pageable pageable);
+
+    @Query("SELECT COUNT(m) > 0 FROM Message m WHERE m.senderId = :senderId AND (m.receiverId = :receiverId OR (m.receiverId IS NULL AND :receiverId IS NULL)) AND (m.groupId = :groupId OR (m.groupId IS NULL AND :groupId IS NULL)) AND m.createdDate = :createdDate AND m.content = :content")
+    boolean existsSimilar(
+            @Param("senderId") String senderId,
+            @Param("receiverId") String receiverId,
+            @Param("groupId") String groupId,
+            @Param("createdDate") java.time.Instant createdDate,
+            @Param("content") String content
+    );
 }
