@@ -90,9 +90,15 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         String userName = null;
         String userId = null;
 
-        if (token != null && jwtUtil.validateToken(token)) {
-            userId = jwtUtil.getUserIdFromToken(token);
-            userName = jwtUtil.getUserNameFromToken(token);
+        if (token != null && !token.isBlank() && !"undefined".equalsIgnoreCase(token) && !"null".equalsIgnoreCase(token)) {
+            if (jwtUtil.validateToken(token)) {
+                userId = jwtUtil.getUserIdFromToken(token);
+                userName = jwtUtil.getUserNameFromToken(token);
+            } else {
+                log.warn("SignalR session {} provided invalid/expired JWT token", session.getId());
+            }
+        } else {
+            log.warn("SignalR session {} attempted connection without token", session.getId());
         }
 
         if (userName == null && userId != null) {
@@ -103,7 +109,10 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         }
 
         if (userName == null) {
-            log.warn("Unauthenticated SignalR connection attempt on session {}", session.getId());
+            log.warn("Unauthenticated SignalR connection attempt on session {} - closing connection", session.getId());
+            try {
+                session.close(new CloseStatus(4001, "Unauthorized: Invalid or expired token"));
+            } catch (Exception ignored) {}
             return;
         }
 
@@ -113,6 +122,10 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         }
 
         if (currentUserOpt.isEmpty()) {
+            log.warn("User {} not found in database for session {} - closing connection", userName, session.getId());
+            try {
+                session.close(new CloseStatus(4001, "User not found"));
+            } catch (Exception ignored) {}
             return;
         }
 
@@ -509,8 +522,15 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         URI uri = session.getUri();
         if (uri != null) {
             Map<String, String> query = getQueryParams(uri);
-            if (query.containsKey("access_token")) {
-                return query.get("access_token");
+            String rawToken = query.get("access_token");
+            if (rawToken == null || rawToken.isBlank()) {
+                rawToken = query.get("token");
+            }
+            if (rawToken != null && !rawToken.isBlank()) {
+                try {
+                    rawToken = java.net.URLDecoder.decode(rawToken, java.nio.charset.StandardCharsets.UTF_8);
+                } catch (Exception ignored) {}
+                return rawToken;
             }
         }
 

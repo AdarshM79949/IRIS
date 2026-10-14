@@ -319,12 +319,17 @@
     .canvas-fullscreen-overlay {
       position: fixed;
       inset: 0;
+      width: 100%;
+      height: 100dvh;
+      height: 100vh;
       z-index: 999;
       background: #0b1120;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
     .canvas-header-bar {
       padding: 0.75rem 1.5rem;
@@ -475,6 +480,9 @@
       background: #0b1120;
       width: 100%;
       height: 100%;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
     #paintCanvas {
       width: 100%;
@@ -1135,18 +1143,89 @@
         padding: 0.45rem 0.75rem;
         font-size: 0.75rem;
       }
-      .live-canvas-container {
-        height: 270px;
+      .header-btn-text, .tool-name {
+        display: none !important;
+      }
+      .canvas-header-bar {
+        padding: 0.4rem 0.6rem !important;
+        gap: 0.35rem !important;
+        flex-shrink: 0;
+      }
+      .canvas-back-btn {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px !important;
+      }
+      .canvas-room-badge {
+        padding: 0.25rem 0.5rem !important;
+        gap: 0.35rem !important;
+        max-width: 120px;
+        border-radius: 8px !important;
+      }
+      .canvas-room-badge span {
+        font-size: 0.78rem !important;
+      }
+      .canvas-top-actions {
+        gap: 0.25rem !important;
+      }
+      .canvas-top-actions .action-btn {
+        padding: 0.4rem 0.55rem !important;
+        font-size: 0.82rem !important;
+        border-radius: 7px !important;
       }
       .canvas-toolbar {
-        padding: 0.45rem 0.65rem;
-        overflow-x: auto;
-        flex-wrap: nowrap;
-        -webkit-overflow-scrolling: touch;
-        gap: 0.5rem;
-      }
-      .tool-group, .color-group, .action-group, .size-slider-box {
+        padding: 0.4rem 0.5rem !important;
+        gap: 0.45rem !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch !important;
         flex-shrink: 0;
+        scroll-behavior: smooth;
+      }
+      .canvas-toolbar::-webkit-scrollbar {
+        height: 3px;
+      }
+      .canvas-toolbar::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.4);
+        border-radius: 4px;
+      }
+      .tool-group {
+        gap: 0.25rem !important;
+        flex-shrink: 0 !important;
+      }
+      .tool-btn {
+        padding: 0.4rem 0.5rem !important;
+        font-size: 1.05rem !important;
+        min-width: 36px !important;
+        height: 36px !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+      }
+      .color-group {
+        gap: 0.25rem !important;
+        flex-shrink: 0 !important;
+        padding: 0 0.15rem;
+      }
+      .color-swatch {
+        width: 22px !important;
+        height: 22px !important;
+      }
+      #customColorPicker {
+        width: 26px !important;
+        height: 26px !important;
+      }
+      .size-slider-box {
+        gap: 0.3rem !important;
+        flex-shrink: 0 !important;
+      }
+      .size-slider-box input[type="range"] {
+        width: 60px !important;
+      }
+      #sizeVal {
+        font-size: 0.75rem !important;
+        min-width: 24px;
       }
       .chat-messages {
         padding: 0.9rem;
@@ -1277,32 +1356,32 @@
     <!-- Canvas Top Header -->
     <div class="canvas-header-bar">
       <button id="btnBackFromCanvas" class="canvas-back-btn" title="Return to chat">
-        <span>←</span> <span>Back to Chat</span>
+        <span>←</span> <span class="header-btn-text">Back to Chat</span>
       </button>
       <div class="canvas-room-badge">
         <div class="pulse-dot"></div>
-        <div style="display:flex; flex-direction:column;">
-          <span id="canvasRoomTitle" style="font-weight:700; font-size:0.95rem;">Live Collaboration Canvas</span>
-          <span id="canvasRoomSubtitle" style="font-size:0.75rem; color:var(--text-muted);">Real-time Multi-User Sync</span>
+        <div style="display:flex; flex-direction:column; min-width:0;">
+          <span id="canvasRoomTitle" style="font-weight:700; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Live Collaboration Canvas</span>
+          <span id="canvasRoomSubtitle" class="header-btn-text" style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Real-time Multi-User Sync</span>
         </div>
       </div>
       <div class="canvas-top-actions">
-        <button id="btnCanvasUndo" class="action-btn" title="Undo stroke">↩️ Undo</button>
-        <button id="btnCanvasRedo" class="action-btn" title="Redo stroke">↪️ Redo</button>
-        <button id="btnCanvasClear" class="action-btn" title="Clear canvas">🗑️ Clear</button>
-        <button id="btnCanvasSavePng" class="action-btn" title="Export as PNG">💾 Export</button>
-        <button id="btnCanvasSendChat" class="action-btn send-drawing" title="Share drawing directly to current chat">📤 Send to Chat</button>
+        <button id="btnCanvasUndo" class="action-btn" title="Undo stroke"><span>↩️</span><span class="header-btn-text"> Undo</span></button>
+        <button id="btnCanvasRedo" class="action-btn" title="Redo stroke"><span>↪️</span><span class="header-btn-text"> Redo</span></button>
+        <button id="btnCanvasClear" class="action-btn" title="Clear canvas"><span>🗑️</span><span class="header-btn-text"> Clear</span></button>
+        <button id="btnCanvasSavePng" class="action-btn" title="Export as PNG"><span>💾</span><span class="header-btn-text"> Export</span></button>
+        <button id="btnCanvasSendChat" class="action-btn send-drawing" title="Share drawing directly to current chat"><span>📤</span><span> Send</span></button>
       </div>
     </div>
 
     <!-- Canvas Floating Toolbar (Clean - AI helper removed from drawing as requested) -->
     <div class="canvas-toolbar">
       <div class="tool-group">
-        <button class="tool-btn active" data-tool="brush" title="Freehand Brush">🖌️ Brush</button>
-        <button class="tool-btn" data-tool="eraser" title="Eraser">🧹 Eraser</button>
-        <button class="tool-btn" data-tool="line" title="Straight Line">📏 Line</button>
-        <button class="tool-btn" data-tool="rectangle" title="Rectangle Box">⬜ Box</button>
-        <button class="tool-btn" data-tool="circle" title="Circle Shape">⭕ Circle</button>
+        <button class="tool-btn active" data-tool="brush" title="Freehand Brush"><span>🖌️</span><span class="tool-name"> Brush</span></button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser"><span>🧹</span><span class="tool-name"> Eraser</span></button>
+        <button class="tool-btn" data-tool="line" title="Straight Line"><span>📏</span><span class="tool-name"> Line</span></button>
+        <button class="tool-btn" data-tool="rectangle" title="Rectangle Box"><span>⬜</span><span class="tool-name"> Box</span></button>
+        <button class="tool-btn" data-tool="circle" title="Circle Shape"><span>⭕</span><span class="tool-name"> Circle</span></button>
       </div>
 
       <div class="color-group">
@@ -1318,7 +1397,7 @@
       </div>
 
       <div class="size-slider-box">
-        <span>Stroke:</span>
+        <span class="tool-name">Stroke:</span>
         <input type="range" id="sizeSlider" min="1" max="40" value="4">
         <span id="sizeVal">4px</span>
       </div>
@@ -1537,11 +1616,17 @@
 
   <script>
     let token = localStorage.getItem('token');
+    if (token === 'undefined' || token === 'null' || !token) {
+      token = null;
+      localStorage.removeItem('token');
+    }
     let currentUser = null;
     try {
       const stored = localStorage.getItem('currentUser');
-      if (stored) currentUser = JSON.parse(stored);
-    } catch (e) {}
+      if (stored && stored !== 'undefined' && stored !== 'null') currentUser = JSON.parse(stored);
+    } catch (e) {
+      currentUser = null;
+    }
 
     let hub = null;
     let allUsers = [];
@@ -1695,31 +1780,54 @@
       }
     };
 
+    function logoutUser() {
+      token = null;
+      currentUser = null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      if (hub) {
+        try { hub.stop(); } catch (e) {}
+        hub = null;
+      }
+      document.getElementById('appScreen').classList.add('hidden');
+      document.getElementById('authScreen').classList.remove('hidden');
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.onclick = logoutUser;
+
     async function initApp() {
-      if (!token) return;
+      if (!token || token === 'undefined' || token === 'null') {
+        logoutUser();
+        return;
+      }
       try {
         const res = await fetch(`${API_BASE}/api/account/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (res.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('currentUser');
-          document.getElementById('appScreen').classList.add('hidden');
-          document.getElementById('authScreen').classList.remove('hidden');
+        if (!res.ok) {
+          console.warn('Session expired or invalid (HTTP ' + res.status + ').');
+          logoutUser();
+          showToast('Session expired. Please sign in again.');
           return;
         }
 
         const meData = await res.json();
-        if (meData.isSuccess && meData.data) {
-          currentUser = meData.data;
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-          document.getElementById('authScreen').classList.add('hidden');
-          document.getElementById('appScreen').classList.remove('hidden');
-
-          document.getElementById('myAvatar').src = currentUser.profileImage || 'https://via.placeholder.com/50';
-          document.getElementById('myName').innerText = currentUser.fullName;
-          document.getElementById('myUsername').innerText = '@' + currentUser.userName;
+        if (!meData.isSuccess || !meData.data) {
+          console.warn('User profile fetch failed.');
+          logoutUser();
+          showToast('Session invalid. Please sign in.');
+          return;
         }
+
+        currentUser = meData.data;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+
+        document.getElementById('myAvatar').src = currentUser.profileImage || 'https://via.placeholder.com/50';
+        document.getElementById('myName').innerText = currentUser.fullName;
+        document.getElementById('myUsername').innerText = '@' + currentUser.userName;
 
         loadAllUsers();
         connectSignalR();
@@ -1730,16 +1838,10 @@
         setupAiAssistantModule();
       } catch (err) {
         console.error('initApp network or cold start:', err);
-        // Do not wipe credentials on cold-start or network glitch
-        if (currentUser) {
-          loadAllUsers();
-          connectSignalR();
-          loadFriendRequests();
-          loadSentFriendRequests();
-          loadMyGroups();
-          setupCanvasModule();
-          setupAiAssistantModule();
-        }
+        // Retry connection after 3.5s if server was waking from cold start
+        setTimeout(() => {
+          if (token && (!currentUser || !hub)) initApp();
+        }, 3500);
       }
     }
 
@@ -1768,13 +1870,25 @@
     }
 
     function connectSignalR() {
+      if (!token || token === 'undefined' || token === 'null') return;
+      if (hub && hub.state === signalR.HubConnectionState.Connected) return;
+
+      const hubUrl = `${API_BASE}/hubs/chat?access_token=${encodeURIComponent(token)}`;
       hub = new signalR.HubConnectionBuilder()
-        .withUrl(`${API_BASE}/hubs/chat`, {
+        .withUrl(hubUrl, {
           accessTokenFactory: () => token,
           transport: signalR.HttpTransportType.WebSockets
         })
-        .withAutomaticReconnect()
+        .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
         .build();
+
+      hub.onclose((err) => {
+        console.warn('SignalR connection closed:', err);
+        if (err && (err.message && (err.message.includes('4001') || err.message.includes('Unauthorized')))) {
+          showToast('Session expired. Please log in.');
+          logoutUser();
+        }
+      });
 
       hub.on('OnlineUsers', (users) => {
         const onlineMap = new Map((users || []).map(u => [u.id, u]));
@@ -2925,31 +3039,58 @@
         };
       }
 
-      // Mouse Listeners
-      canvas.addEventListener('mousedown', startPaint);
-      canvas.addEventListener('mousemove', drawPaint);
-      canvas.addEventListener('mouseup', stopPaint);
-      canvas.addEventListener('mouseleave', stopPaint);
+      // Modern Unified Pointer Events (Touch, Stylus, Apple Pencil & Mouse)
+      if (window.PointerEvent) {
+        canvas.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+          startPaint(e);
+        });
+        canvas.addEventListener('pointermove', (e) => {
+          e.preventDefault();
+          drawPaint(e);
+        });
+        canvas.addEventListener('pointerup', (e) => {
+          e.preventDefault();
+          try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+          stopPaint(e);
+        });
+        canvas.addEventListener('pointercancel', (e) => {
+          e.preventDefault();
+          try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+          stopPaint(e);
+        });
+      } else {
+        // Fallback for older mobile touch devices
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPaint(e); }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawPaint(e); }, { passive: false });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopPaint(e); }, { passive: false });
+        canvas.addEventListener('touchcancel', (e) => { e.preventDefault(); stopPaint(e); }, { passive: false });
 
-      // Touch Listeners for mobile / tablet screens
-      canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPaint(e); }, { passive: false });
-      canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawPaint(e); }, { passive: false });
-      canvas.addEventListener('touchend', stopPaint);
+        canvas.addEventListener('mousedown', startPaint);
+        canvas.addEventListener('mousemove', drawPaint);
+        canvas.addEventListener('mouseup', stopPaint);
+        canvas.addEventListener('mouseleave', stopPaint);
+      }
     }
 
     function openCanvasOverlay() {
       const page = document.getElementById('pageCanvas');
       if (!page) return;
       page.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
       isCanvasOpen = true;
       switchRoomCanvas();
-      setTimeout(resizeCanvas, 30);
+      requestAnimationFrame(resizeCanvas);
+      setTimeout(resizeCanvas, 40);
+      setTimeout(resizeCanvas, 150);
     }
 
     function closeCanvasOverlay() {
       const page = document.getElementById('pageCanvas');
       if (!page) return;
       page.classList.add('hidden');
+      document.body.style.overflow = '';
       isCanvasOpen = false;
       saveCurrentRoomCanvas();
     }
@@ -2984,6 +3125,11 @@
       const rect = canvas.parentElement.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
 
+      const newWidth = Math.floor(rect.width);
+      const newHeight = Math.floor(rect.height);
+
+      if (canvas.width === newWidth && canvas.height === newHeight) return;
+
       // Preserve drawing content across resize
       let prevContent = null;
       if (canvas.width > 0 && canvas.height > 0) {
@@ -2993,8 +3139,8 @@
         prevContent.getContext('2d').drawImage(canvas, 0, 0);
       }
 
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      canvas.width = newWidth;
+      canvas.height = newHeight;
 
       if (prevContent) {
         ctx.drawImage(prevContent, 0, 0, canvas.width, canvas.height);
@@ -3005,6 +3151,8 @@
         saveHistory();
       }
     }
+
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
 
     function saveHistory() {
       if (!canvas || canvas.width === 0) return;
@@ -3049,18 +3197,28 @@
     function getCoords(e) {
       const rect = canvas.getBoundingClientRect();
       let clientX, clientY;
-      if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
+      if (e.clientX !== undefined && e.clientX !== null && !isNaN(e.clientX)) {
         clientX = e.clientX;
         clientY = e.clientY;
+      } else if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else {
+        clientX = rect.left;
+        clientY = rect.top;
       }
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const w = canvas.width || rect.width || 1;
+      const h = canvas.height || rect.height || 1;
       return {
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-        normX: (clientX - rect.left) / canvas.width,
-        normY: (clientY - rect.top) / canvas.height
+        x: Math.max(0, Math.min(w, x)),
+        y: Math.max(0, Math.min(h, y)),
+        normX: Math.max(0, Math.min(1, x / w)),
+        normY: Math.max(0, Math.min(1, y / h))
       };
     }
 
