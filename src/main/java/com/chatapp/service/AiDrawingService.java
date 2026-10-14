@@ -142,6 +142,40 @@ public class AiDrawingService {
         return null;
     }
 
+    private String callOpenRouter(String prompt, AiDrawingRequestDto request) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", openrouterModel != null && !openrouterModel.isBlank() ? openrouterModel : "openrouter/free");
+        body.put("temperature", 0.7);
+        body.put("max_tokens", 850);
+
+        List<Map<String, Object>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", "You are an insightful, encouraging AI Drawing and Art Mentor. Always provide structured, practical advice."));
+        messages.add(Map.of("role", "user", "content", prompt));
+        body.put("messages", messages);
+
+        String jsonPayload = objectMapper.writeValueAsString(body);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("https://openrouter.ai/api/v1/chat/completions"))
+                .header("Authorization", "Bearer " + openrouterApiKey)
+                .header("Content-Type", "application/json; charset=utf-8")
+                .timeout(Duration.ofSeconds(15))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload, StandardCharsets.UTF_8))
+                .build();
+
+        HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (resp.statusCode() == 200) {
+            JsonNode root = objectMapper.readTree(resp.body());
+            JsonNode choices = root.get("choices");
+            if (choices != null && choices.isArray() && choices.size() > 0) {
+                return choices.get(0).path("message").path("content").asText();
+            }
+        } else {
+            log.warn("OpenRouter returned status code: {} body: {}", resp.statusCode(), resp.body());
+        }
+        return null;
+    }
+
     public Map<String, Object> chat(String userMessage, List<Map<String, String>> history) {
         if (userMessage == null || userMessage.trim().isEmpty()) {
             return Map.of("reply", "Please provide a message.", "provider", "System", "success", false);
