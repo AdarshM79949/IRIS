@@ -91,11 +91,12 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
         String userId = null;
 
         if (token != null && !token.isBlank() && !"undefined".equalsIgnoreCase(token) && !"null".equalsIgnoreCase(token)) {
-            if (jwtUtil.validateToken(token)) {
+            String validationError = jwtUtil.getTokenValidationError(token);
+            if (validationError == null) {
                 userId = jwtUtil.getUserIdFromToken(token);
                 userName = jwtUtil.getUserNameFromToken(token);
             } else {
-                log.warn("SignalR session {} provided invalid/expired JWT token", session.getId());
+                log.warn("SignalR session {} JWT validation rejected: {}", session.getId(), validationError);
             }
         } else {
             log.warn("SignalR session {} attempted connection without token", session.getId());
@@ -527,32 +528,50 @@ public class SignalRChatWebSocketHandler extends TextWebSocketHandler {
                 rawToken = query.get("token");
             }
             if (rawToken != null && !rawToken.isBlank()) {
-                try {
-                    rawToken = java.net.URLDecoder.decode(rawToken, java.nio.charset.StandardCharsets.UTF_8);
-                } catch (Exception ignored) {}
-                return rawToken;
+                return cleanToken(rawToken);
             }
         }
 
         List<String> authHeaders = session.getHandshakeHeaders().get("Authorization");
         if (authHeaders != null && !authHeaders.isEmpty()) {
             String header = authHeaders.get(0);
-            if (header.startsWith("Bearer ")) {
-                return header.substring(7);
-            }
+            return cleanToken(header);
         }
 
         return null;
     }
 
+    private String cleanToken(String token) {
+        if (token == null) return null;
+        token = token.trim();
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7).trim();
+        }
+        if (token.contains("%")) {
+            try {
+                token = java.net.URLDecoder.decode(token, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception ignored) {}
+        }
+        if (token.contains(" ")) {
+            token = token.replace(" ", "+");
+        }
+        return token.trim();
+    }
+
     private Map<String, String> getQueryParams(URI uri) {
         Map<String, String> queryPairs = new HashMap<>();
-        if (uri == null || uri.getQuery() == null) return queryPairs;
-        String[] pairs = uri.getQuery().split("&");
+        if (uri == null) return queryPairs;
+        String queryStr = uri.getRawQuery() != null ? uri.getRawQuery() : uri.getQuery();
+        if (queryStr == null || queryStr.isBlank()) return queryPairs;
+        String[] pairs = queryStr.split("&");
         for (String pair : pairs) {
             int idx = pair.indexOf("=");
             if (idx > 0) {
-                queryPairs.put(pair.substring(0, idx), pair.substring(idx + 1));
+                String key = pair.substring(0, idx);
+                String val = pair.substring(idx + 1);
+                if (!queryPairs.containsKey(key) && !val.isBlank()) {
+                    queryPairs.put(key, val);
+                }
             }
         }
         return queryPairs;

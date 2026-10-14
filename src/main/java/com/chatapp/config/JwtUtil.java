@@ -20,7 +20,7 @@ public class JwtUtil {
 
     public JwtUtil(
             @Value("${app.jwt.secret:vndfkgvbfdcfdsgnerughertuhfgvndvifvhuhgterfjerfvnrughughefenveogjrtugntlfvfnlkmvfeirgnrtnhyunbjgfnriejfrgrtjhnbgjlnvfilvkmevirgbnylnmibglkmfdvfjndmvsrogb}") String secret,
-            @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
+            @Value("${app.jwt.expiration-ms:2592000000}") long expirationMs) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
@@ -87,12 +87,26 @@ public class JwtUtil {
         return claims.getSubject();
     }
 
-    public boolean validateToken(String token) {
+    public String getTokenValidationError(String token) {
+        if (token == null || token.isBlank()) return "Token is null or empty";
         try {
             Claims claims = getClaimsFromToken(token);
-            return claims.getExpiration().after(new Date());
+            if (claims.getExpiration().before(new Date())) {
+                return "Token expired at " + claims.getExpiration() + " (current server time: " + new Date() + ")";
+            }
+            return null; // Valid!
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            return "Token is expired: " + e.getMessage();
+        } catch (io.jsonwebtoken.security.SignatureException e) {
+            return "Token signature does not match: " + e.getMessage();
+        } catch (io.jsonwebtoken.MalformedJwtException e) {
+            return "Token is malformed: " + e.getMessage();
         } catch (Exception e) {
-            return false;
+            return "Token validation failed: " + e.getClass().getSimpleName() + " - " + e.getMessage();
         }
+    }
+
+    public boolean validateToken(String token) {
+        return getTokenValidationError(token) == null;
     }
 }

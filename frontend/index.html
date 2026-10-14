@@ -1615,15 +1615,33 @@
   </div>
 
   <script>
+    function isTokenExpired(t) {
+      if (!t || t === 'undefined' || t === 'null') return true;
+      try {
+        const parts = t.split('.');
+        if (parts.length < 2) return true;
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        if (!payload.exp) return false;
+        return (payload.exp * 1000) <= (Date.now() + 10000);
+      } catch (e) {
+        return false;
+      }
+    }
+
     let token = localStorage.getItem('token');
-    if (token === 'undefined' || token === 'null' || !token) {
+    if (!token || token === 'undefined' || token === 'null' || isTokenExpired(token)) {
       token = null;
       localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
     }
     let currentUser = null;
     try {
       const stored = localStorage.getItem('currentUser');
-      if (stored && stored !== 'undefined' && stored !== 'null') currentUser = JSON.parse(stored);
+      if (stored && stored !== 'undefined' && stored !== 'null' && token) currentUser = JSON.parse(stored);
     } catch (e) {
       currentUser = null;
     }
@@ -1638,7 +1656,7 @@
     let selectedGroupObj = null;
     let typingTimer = null;
 
-    // Fast-boot: Immediately show app screen if cached credentials exist
+    // Fast-boot: Immediately show app screen if valid cached credentials exist
     if (token && currentUser) {
       document.getElementById('authScreen').classList.add('hidden');
       document.getElementById('appScreen').classList.remove('hidden');
@@ -1717,14 +1735,6 @@
       document.getElementById('authSubtitle').innerText = 'Log in to your IRIS account';
     };
 
-    // Logout
-    document.getElementById('logoutBtn').onclick = () => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('currentUser');
-      if (hub) hub.stop();
-      location.reload();
-    };
-
     // Register Handler
     document.getElementById('registerForm').onsubmit = async (e) => {
       e.preventDefault();
@@ -1797,7 +1807,7 @@
     if (logoutBtn) logoutBtn.onclick = logoutUser;
 
     async function initApp() {
-      if (!token || token === 'undefined' || token === 'null') {
+      if (!token || token === 'undefined' || token === 'null' || isTokenExpired(token)) {
         logoutUser();
         return;
       }
@@ -1840,7 +1850,7 @@
         console.error('initApp network or cold start:', err);
         // Retry connection after 3.5s if server was waking from cold start
         setTimeout(() => {
-          if (token && (!currentUser || !hub)) initApp();
+          if (token && !isTokenExpired(token) && (!currentUser || !hub)) initApp();
         }, 3500);
       }
     }
@@ -1870,21 +1880,43 @@
     }
 
     function connectSignalR() {
-      if (!token || token === 'undefined' || token === 'null') return;
+      if (!token || token === 'undefined' || token === 'null' || isTokenExpired(token)) {
+        logoutUser();
+        return;
+      }
       if (hub && hub.state === signalR.HubConnectionState.Connected) return;
 
-      const hubUrl = `${API_BASE}/hubs/chat?access_token=${encodeURIComponent(token)}`;
+      const hubUrl = `${API_BASE}/hubs/chat`;
       hub = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl, {
           accessTokenFactory: () => token,
           transport: signalR.HttpTransportType.WebSockets
         })
-        .withAutomaticReconnect([0, 2000, 5000, 10000, 20000])
+        .withAutomaticReconnect({
+          nextRetryDelayInMilliseconds: retryContext => {
+            if (!token || isTokenExpired(token)) {
+              console.warn('Aborting SignalR reconnect: token is expired.');
+              logoutUser();
+              showToast('Session expired. Please log in.');
+              return null;
+            }
+            const delays = [0, 2000, 5000, 10000, 20000];
+            return delays[retryContext.previousRetryCount] !== undefined ? delays[retryContext.previousRetryCount] : 20000;
+          }
+        })
         .build();
+
+      hub.onreconnecting((err) => {
+        console.warn('SignalR reconnecting...', err);
+        if (!token || isTokenExpired(token)) {
+          logoutUser();
+          showToast('Session expired. Please log in.');
+        }
+      });
 
       hub.onclose((err) => {
         console.warn('SignalR connection closed:', err);
-        if (err && (err.message && (err.message.includes('4001') || err.message.includes('Unauthorized')))) {
+        if (!token || isTokenExpired(token) || (err && (err.message && (err.message.includes('4001') || err.message.includes('Unauthorized'))))) {
           showToast('Session expired. Please log in.');
           logoutUser();
         }
@@ -2070,7 +2102,15 @@
         }
       });
 
-      hub.start().then(() => console.log('SignalR connected successfully!')).catch(console.error);
+      hub.start()
+        .then(() => console.log('SignalR connected successfully!'))
+        .catch((err) => {
+          console.error('SignalR start error:', err);
+          if (!token || isTokenExpired(token) || (err && (err.message && (err.message.includes('4001') || err.message.includes('Unauthorized'))))) {
+            logoutUser();
+            showToast('Session expired. Please log in.');
+          }
+        });
     }
 
     // ============================================
