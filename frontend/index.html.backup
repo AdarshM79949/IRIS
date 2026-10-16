@@ -1,0 +1,3730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>IRIS - Real-time Collaboration, Groups & Live Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-border: #334155;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --online: #22c55e;
+      --offline: #64748b;
+      --bubble-me: #6366f1;
+      --bubble-other: #334155;
+      --accent: #ec4899;
+      --canvas-bg: #1e293b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .hidden { display: none !important; }
+
+    /* Auth screen */
+    .auth-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .auth-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    .auth-card h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; text-align: center; }
+    .auth-card p.subtitle { color: var(--text-muted); font-size: 0.95rem; text-align: center; margin-bottom: 2rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; }
+    .form-group input {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+    .btn {
+      width: 100%;
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .auth-toggle { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted); }
+    .auth-toggle a { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+
+    /* App Screen */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    /* Left Sidebar */
+    .sidebar-left {
+      width: 330px;
+      background: #111827;
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+    }
+    .my-profile-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .my-profile-header img {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+    }
+    .my-info { flex: 1; overflow: hidden; }
+    .my-info .name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .my-info .tag { font-size: 0.8rem; color: var(--text-muted); }
+    .btn-logout { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+
+    .users-scroll { flex: 1; overflow-y: auto; padding: 1rem; }
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .btn-create-group {
+      padding: 0.25rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-create-group:hover { opacity: 0.9; }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.7rem 0.8rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 0.3rem;
+    }
+    .user-item:hover { background: #1e293b; }
+    .user-item.active { background: #312e81; }
+    .avatar-wrapper { position: relative; }
+    .avatar-wrapper img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+    .group-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      position: absolute;
+      bottom: 1px;
+      right: 1px;
+      border: 2px solid #111827;
+    }
+    .status-dot.online { background: var(--online); }
+    .status-dot.offline { background: var(--offline); }
+    .user-meta { flex: 1; overflow: hidden; }
+    .user-meta .u-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-action-small {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Main Chat Window */
+    .chat-window {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      position: relative;
+    }
+    .chat-header {
+      padding: 1rem 1.5rem;
+      background: #1e293b;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      z-index: 10;
+    }
+    .chat-header img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    
+    .btn-draw-together {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    .btn-draw-together:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
+    }
+    .btn-draw-together.active {
+      background: linear-gradient(135deg, #ec4899, #ef4444);
+    }
+
+    .chat-content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .message-bubble {
+      max-width: 65%;
+      padding: 0.8rem 1.1rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .message-bubble.me {
+      align-self: flex-end;
+      background: var(--bubble-me);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message-bubble.other {
+      align-self: flex-start;
+      background: var(--bubble-other);
+      color: #f1f5f9;
+      border-bottom-left-radius: 4px;
+    }
+    .group-msg-sender {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #818cf8;
+      margin-bottom: 0.25rem;
+    }
+    .message-bubble img.chat-drawing-img {
+      max-width: 280px;
+      border-radius: 8px;
+      margin-top: 0.4rem;
+      display: block;
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+    }
+
+    .chat-input-bar {
+      padding: 1rem 1.5rem;
+      background: #1e293b;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      gap: 0.8rem;
+      z-index: 10;
+    }
+    .chat-input-bar input {
+      flex: 1;
+      padding: 0.85rem 1.2rem;
+      border-radius: 24px;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .chat-input-bar input:focus { border-color: var(--primary); }
+    .chat-input-bar button {
+      padding: 0.85rem 1.5rem;
+      border-radius: 24px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ========================================= */
+    /* ========================================= */
+    /* DEDICATED FULL-PAGE LIVE DRAWING CANVAS   */
+    /* ========================================= */
+    .canvas-fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100dvh;
+      height: 100vh;
+      z-index: 999;
+      background: #0b1120;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .canvas-header-bar {
+      padding: 0.75rem 1.5rem;
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      z-index: 10;
+    }
+    .canvas-back-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid var(--card-border);
+      padding: 0.55rem 1rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .canvas-back-btn:hover {
+      background: #334155;
+      border-color: var(--primary);
+      transform: translateX(-2px);
+    }
+    .canvas-room-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.4rem 1rem;
+      border-radius: 12px;
+    }
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+      animation: pulseGlow 1.8s infinite;
+    }
+    @keyframes pulseGlow {
+      0% { opacity: 0.6; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 14px #22c55e; }
+      100% { opacity: 0.6; transform: scale(0.95); }
+    }
+    .canvas-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .canvas-toolbar {
+      padding: 0.6rem 1.5rem;
+      background: #0f172a;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+    .tool-group, .color-group, .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .tool-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid var(--card-border);
+      padding: 0.5rem 0.8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover { background: #334155; color: #fff; }
+    .tool-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
+    }
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #334155;
+      transition: transform 0.2s;
+    }
+    .color-swatch:hover { transform: scale(1.2); }
+    .color-swatch.active { border-color: #fff; transform: scale(1.25); box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+    #customColorPicker {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      background: transparent;
+    }
+    .size-slider-box {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .size-slider-box input[type="range"] {
+      width: 90px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+    .action-btn {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid var(--card-border);
+      padding: 0.5rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-btn:hover { background: #334155; }
+    .action-btn.send-drawing {
+      background: #10b981;
+      color: #fff;
+      border-color: #059669;
+    }
+    .action-btn.send-drawing:hover { background: #059669; }
+
+    .canvas-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+      background: #0b1120;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #paintCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    .remote-cursor {
+      position: absolute;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transform: translate(-4px, -4px);
+      z-index: 100;
+      transition: left 0.04s linear, top 0.04s linear;
+    }
+    .remote-cursor-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ec4899;
+      box-shadow: 0 0 8px #ec4899;
+    }
+    .remote-cursor-label {
+      background: #ec4899;
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* ========================================= */
+    /* DEDICATED FULL-PAGE AI ASSISTANT          */
+    /* ========================================= */
+    .ai-page-view {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .ai-page-header {
+      padding: 0.85rem 1.5rem;
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      z-index: 10;
+    }
+    .ai-avatar-glow {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.4);
+      flex-shrink: 0;
+    }
+    .ai-model-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #a5b4fc;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+    }
+    .ai-chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+    .ai-welcome-card {
+      text-align: center;
+      padding: 2.5rem 1.5rem 1.5rem;
+      margin: auto 0;
+    }
+    .ai-starter-prompts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      text-align: left;
+    }
+    .ai-prompt-chip {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+      line-height: 1.4;
+    }
+    .ai-prompt-chip:hover {
+      background: #334155;
+      border-color: var(--primary);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .ai-msg-row {
+      display: flex;
+      gap: 0.75rem;
+      max-width: 82%;
+    }
+    .ai-msg-row.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    .ai-msg-row.assistant {
+      align-self: flex-start;
+    }
+    .ai-msg-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .ai-msg-row.user .ai-msg-avatar {
+      background: var(--primary);
+      color: #fff;
+    }
+    .ai-msg-row.assistant .ai-msg-avatar {
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      color: #fff;
+    }
+    .ai-msg-bubble {
+      padding: 0.9rem 1.2rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .ai-msg-row.user .ai-msg-bubble {
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .ai-msg-row.assistant .ai-msg-bubble {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid var(--card-border);
+      border-bottom-left-radius: 4px;
+    }
+    .ai-msg-bubble pre {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      overflow-x: auto;
+      margin: 0.6rem 0;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+    .ai-msg-bubble code {
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+    .ai-input-bar-container {
+      background: #111827;
+      border-top: 1px solid var(--card-border);
+      padding: 1rem 1.5rem;
+      z-index: 10;
+    }
+    .ai-input-bar {
+      display: flex;
+      gap: 0.8rem;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+    .ai-input-bar input {
+      flex: 1;
+      padding: 0.85rem 1.25rem;
+      border-radius: 24px;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .ai-input-bar input:focus {
+      border-color: var(--primary);
+    }
+    .btn-ai-send {
+      padding: 0.85rem 1.5rem;
+      border-radius: 24px;
+      border: none;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .btn-ai-send:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .btn-ai-portal {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(6,182,212,0.12));
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      transition: all 0.2s;
+    }
+    .btn-ai-portal:hover {
+      background: linear-gradient(135deg, rgba(99,102,241,0.32), rgba(6,182,212,0.22));
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+    .ai-chip {
+      font-size: 0.65rem;
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: #fff;
+      padding: 0.15rem 0.45rem;
+      border-radius: 6px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+
+    /* Modal Backdrop and Card */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      width: 90%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .modal-header h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+    .friends-checklist {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      background: #0f172a;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .friend-check-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.4rem 0.5rem;
+      border-radius: 8px;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .friend-check-item:hover {
+      background: #1e293b;
+    }
+    .friend-check-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+    .friend-check-item img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.8rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+    .btn-secondary {
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      background: #334155;
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .btn-primary-small {
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .btn-group-action {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s;
+    }
+    .btn-group-action:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #64748b;
+    }
+    .btn-group-leave {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-group-leave:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #fff;
+    }
+    .btn-group-leave-modal {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.2s;
+    }
+    .btn-group-leave-modal:hover {
+      background: #dc2626;
+    }
+    .member-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.85rem;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+    }
+    .member-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+    .member-info img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .member-names {
+      min-width: 0;
+    }
+    .member-names .m-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .member-names .m-user {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .badge-creator {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .btn-kick {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #f87171;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-kick:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .btn-add-member {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.45);
+      color: #a5b4fc;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-add-member:hover {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    .action-btn.btn-ai {
+      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+    }
+    .action-btn.btn-ai:hover {
+      background: linear-gradient(135deg, #7c3aed, #0891b2);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.6);
+    }
+
+    /* AI Modal Specifics */
+    .ai-modal-card {
+      max-width: 640px !important;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .ai-focus-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .ai-pill {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 20px;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .ai-pill:hover {
+      background: #334155;
+      color: #fff;
+    }
+    .ai-pill.active {
+      background: #8b5cf6;
+      border-color: #8b5cf6;
+      color: #fff;
+    }
+    .ai-loading-box {
+      padding: 2.5rem 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .ai-spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(139, 92, 246, 0.2);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: aiSpin 0.9s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes aiSpin {
+      to { transform: rotate(360deg); }
+    }
+    .ai-results-scroll {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 380px;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+    }
+    .ai-provider-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #a78bfa;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    .ai-markdown-body {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+    .ai-markdown-body h3 {
+      font-size: 1.05rem;
+      color: #67e8f9;
+      margin-top: 1rem;
+      margin-bottom: 0.4rem;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 0.2rem;
+    }
+    .ai-markdown-body p {
+      margin-bottom: 0.6rem;
+    }
+    .ai-markdown-body ul {
+      padding-left: 1.25rem;
+      margin-bottom: 0.8rem;
+    }
+    .ai-markdown-body li {
+      margin-bottom: 0.35rem;
+    }
+    .ai-markdown-body strong {
+      color: #fff;
+    }
+    .ai-result-actions {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      justify-content: flex-end;
+    }
+
+    .btn-mobile-back {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #334155;
+      color: #fff;
+      border: none;
+      font-size: 1.15rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .btn-mobile-back:hover {
+      background: #475569;
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 768px) {
+      .app-container {
+        position: relative;
+        width: 100%;
+        height: 100dvh;
+        overflow: hidden;
+      }
+      .sidebar-left {
+        width: 100% !important;
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        transition: transform 0.25s ease;
+      }
+      .chat-window {
+        width: 100% !important;
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        transition: transform 0.25s ease;
+      }
+      body.chat-open .sidebar-left {
+        transform: translateX(-100%);
+        pointer-events: none;
+      }
+      body.chat-open .chat-window {
+        z-index: 30;
+      }
+      .btn-mobile-back {
+        display: inline-flex !important;
+      }
+      .chat-header {
+        padding: 0.75rem 1rem;
+        gap: 0.6rem;
+      }
+      .chat-header img {
+        width: 38px;
+        height: 38px;
+      }
+      .btn-draw-together {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.75rem;
+      }
+      .header-btn-text, .tool-name {
+        display: none !important;
+      }
+      .canvas-header-bar {
+        padding: 0.4rem 0.6rem !important;
+        gap: 0.35rem !important;
+        flex-shrink: 0;
+      }
+      .canvas-back-btn {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px !important;
+      }
+      .canvas-room-badge {
+        padding: 0.25rem 0.5rem !important;
+        gap: 0.35rem !important;
+        max-width: 120px;
+        border-radius: 8px !important;
+      }
+      .canvas-room-badge span {
+        font-size: 0.78rem !important;
+      }
+      .canvas-top-actions {
+        gap: 0.25rem !important;
+      }
+      .canvas-top-actions .action-btn {
+        padding: 0.4rem 0.55rem !important;
+        font-size: 0.82rem !important;
+        border-radius: 7px !important;
+      }
+      .canvas-toolbar {
+        padding: 0.4rem 0.5rem !important;
+        gap: 0.45rem !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex-shrink: 0;
+        scroll-behavior: smooth;
+      }
+      .canvas-toolbar::-webkit-scrollbar {
+        height: 3px;
+      }
+      .canvas-toolbar::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.4);
+        border-radius: 4px;
+      }
+      .tool-group {
+        gap: 0.25rem !important;
+        flex-shrink: 0 !important;
+      }
+      .tool-btn {
+        padding: 0.4rem 0.5rem !important;
+        font-size: 1.05rem !important;
+        min-width: 36px !important;
+        height: 36px !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+      }
+      .color-group {
+        gap: 0.25rem !important;
+        flex-shrink: 0 !important;
+        padding: 0 0.15rem;
+      }
+      .color-swatch {
+        width: 22px !important;
+        height: 22px !important;
+      }
+      #customColorPicker {
+        width: 26px !important;
+        height: 26px !important;
+      }
+      .size-slider-box {
+        gap: 0.3rem !important;
+        flex-shrink: 0 !important;
+      }
+      .size-slider-box input[type="range"] {
+        width: 60px !important;
+      }
+      #sizeVal {
+        font-size: 0.75rem !important;
+        min-width: 24px;
+      }
+      .chat-messages {
+        padding: 0.9rem;
+        gap: 0.6rem;
+      }
+      .message-bubble {
+        max-width: 82%;
+        padding: 0.7rem 0.95rem;
+        font-size: 0.88rem;
+      }
+      .chat-input-bar {
+        padding: 0.75rem 1rem;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+        gap: 0.5rem;
+      }
+      .chat-input-bar input {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      .chat-input-bar button {
+        padding: 0.75rem 1.1rem;
+        font-size: 0.9rem;
+      }
+      .modal-card {
+        width: 95% !important;
+        max-height: 90vh;
+        padding: 1.25rem !important;
+      }
+      .auth-card {
+        padding: 1.75rem 1.25rem;
+        max-width: 100%;
+      }
+      .auth-container {
+        padding: 0.75rem;
+      }
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #3b82f6;
+      color: #fff;
+      padding: 0.8rem 1.4rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      font-size: 0.9rem;
+      font-weight: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 1999;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- CREATE GROUP MODAL -->
+  <div id="createGroupModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Create New Group</h3>
+        <button id="btnCloseGroupModal" class="modal-close">&times;</button>
+      </div>
+      <form id="createGroupForm">
+        <div class="form-group">
+          <label>Group Name</label>
+          <input type="text" id="newGroupName" required placeholder="e.g. Design Team, Art Club...">
+        </div>
+        <div class="form-group">
+          <label>Select Friends to Add</label>
+          <div id="groupFriendsChecklist" class="friends-checklist"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btnCancelGroupModal" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary-small">Create Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- GROUP MEMBERS & MANAGEMENT MODAL -->
+  <div id="groupMembersModal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="groupModalTitle">Group Members</h3>
+          <div id="groupModalSubtitle" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;"></div>
+        </div>
+        <button id="btnCloseGroupMembersModal" class="modal-close">&times;</button>
+      </div>
+
+      <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.4rem;">
+        Current Members
+      </div>
+      <div id="groupMembersList" class="group-members-container" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0;">
+        <!-- dynamic member items -->
+      </div>
+
+      <!-- Add Member Section -->
+      <div id="groupAddMemberSection" style="margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--card-border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">➕ Add People to Group</span>
+          <span id="groupAddableCount" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+        </div>
+        <input type="text" id="groupAddMemberSearch" placeholder="Search users by name..." style="width: 100%; padding: 0.45rem 0.75rem; font-size: 0.85rem; border-radius: 8px; border: 1px solid var(--card-border); background: var(--bg-tertiary); color: var(--text-primary); margin-bottom: 0.5rem; box-sizing: border-box;">
+        <div id="groupAddMembersList" style="max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem; padding-right: 2px;">
+          <!-- dynamic users to add -->
+        </div>
+      </div>
+
+      <div class="modal-actions" style="justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 1rem; margin-top: 1rem;">
+        <button type="button" id="btnModalLeaveGroup" class="btn-group-leave-modal">
+          🚪 Leave Group
+        </button>
+        <button type="button" id="btnDoneGroupMembers" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEDICATED FULL-PAGE LIVE DRAWING CANVAS (BIG & LIVE) -->
+  <div id="pageCanvas" class="canvas-fullscreen-overlay hidden">
+    <!-- Canvas Top Header -->
+    <div class="canvas-header-bar">
+      <button id="btnBackFromCanvas" class="canvas-back-btn" title="Return to chat">
+        <span>←</span> <span class="header-btn-text">Back to Chat</span>
+      </button>
+      <div class="canvas-room-badge">
+        <div class="pulse-dot"></div>
+        <div style="display:flex; flex-direction:column; min-width:0;">
+          <span id="canvasRoomTitle" style="font-weight:700; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Live Collaboration Canvas</span>
+          <span id="canvasRoomSubtitle" class="header-btn-text" style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Real-time Multi-User Sync</span>
+        </div>
+      </div>
+      <div class="canvas-top-actions">
+        <button id="btnCanvasUndo" class="action-btn" title="Undo stroke"><span>↩️</span><span class="header-btn-text"> Undo</span></button>
+        <button id="btnCanvasRedo" class="action-btn" title="Redo stroke"><span>↪️</span><span class="header-btn-text"> Redo</span></button>
+        <button id="btnCanvasClear" class="action-btn" title="Clear canvas"><span>🗑️</span><span class="header-btn-text"> Clear</span></button>
+        <button id="btnCanvasSavePng" class="action-btn" title="Export as PNG"><span>💾</span><span class="header-btn-text"> Export</span></button>
+        <button id="btnCanvasSendChat" class="action-btn send-drawing" title="Share drawing directly to current chat"><span>📤</span><span> Send</span></button>
+      </div>
+    </div>
+
+    <!-- Canvas Floating Toolbar (Clean - AI helper removed from drawing as requested) -->
+    <div class="canvas-toolbar">
+      <div class="tool-group">
+        <button class="tool-btn active" data-tool="brush" title="Freehand Brush"><span>🖌️</span><span class="tool-name"> Brush</span></button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser"><span>🧹</span><span class="tool-name"> Eraser</span></button>
+        <button class="tool-btn" data-tool="line" title="Straight Line"><span>📏</span><span class="tool-name"> Line</span></button>
+        <button class="tool-btn" data-tool="rectangle" title="Rectangle Box"><span>⬜</span><span class="tool-name"> Box</span></button>
+        <button class="tool-btn" data-tool="circle" title="Circle Shape"><span>⭕</span><span class="tool-name"> Circle</span></button>
+      </div>
+
+      <div class="color-group">
+        <span class="color-swatch active" style="background: #ffffff;" data-color="#ffffff"></span>
+        <span class="color-swatch" style="background: #ef4444;" data-color="#ef4444"></span>
+        <span class="color-swatch" style="background: #22c55e;" data-color="#22c55e"></span>
+        <span class="color-swatch" style="background: #3b82f6;" data-color="#3b82f6"></span>
+        <span class="color-swatch" style="background: #eab308;" data-color="#eab308"></span>
+        <span class="color-swatch" style="background: #ec4899;" data-color="#ec4899"></span>
+        <span class="color-swatch" style="background: #8b5cf6;" data-color="#8b5cf6"></span>
+        <span class="color-swatch" style="background: #06b6d4;" data-color="#06b6d4"></span>
+        <input type="color" id="customColorPicker" value="#ffffff" title="Custom Color Palette">
+      </div>
+
+      <div class="size-slider-box">
+        <span class="tool-name">Stroke:</span>
+        <input type="range" id="sizeSlider" min="1" max="40" value="4">
+        <span id="sizeVal">4px</span>
+      </div>
+    </div>
+
+    <!-- Full-screen Canvas Viewport -->
+    <div class="canvas-viewport" id="canvasViewport">
+      <canvas id="paintCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- DEDICATED FULL-PAGE AI ASSISTANT -->
+  <div id="pageAiAssistant" class="ai-page-view hidden">
+    <!-- AI Top Header -->
+    <div class="ai-page-header">
+      <button id="btnBackFromAi" class="canvas-back-btn" title="Back to chats">
+        <span>←</span> <span>Back to Chats</span>
+      </button>
+      <div class="ai-avatar-glow">🤖</div>
+      <div>
+        <div style="font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span>IRIS AI Assistant</span>
+          <span class="ai-model-tag">Llama 3.1 & Groq</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Intelligent Pair Programmer, Architecture & Brainstorming Mentor</div>
+      </div>
+      <div style="margin-left: auto;">
+        <button id="btnClearAiChat" class="action-btn" title="Clear chat history">🗑️ Clear Chat</button>
+      </div>
+    </div>
+
+    <!-- AI Messages Stream -->
+    <div class="ai-chat-body" id="aiChatMessages">
+      <div class="ai-welcome-card" id="aiWelcomeCard">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✨</div>
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.4rem; color:#fff;">Welcome to IRIS AI Assistant</h2>
+        <p style="color: var(--text-muted); font-size: 0.92rem; max-width: 540px; margin: 0 auto 1.5rem;">
+          Ask coding questions, brainstorm collaborative architecture, draft design specs, or get intelligent assistance with instant responses.
+        </p>
+        <div class="ai-starter-prompts">
+          <button class="ai-prompt-chip" data-prompt="Explain how WebSocket and SignalR protocols deliver real-time messages and state synchronization.">
+            ⚡ <strong>SignalR & WebSocket</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">How real-time bidirectional events work</span>
+          </button>
+          <button class="ai-prompt-chip" data-prompt="Suggest a modern, ergonomic dark-mode palette and typography pairing for a collaboration app.">
+            🎨 <strong>Dark Mode Palettes</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Design tokens & color contrast</span>
+          </button>
+          <button class="ai-prompt-chip" data-prompt="Give me 5 creative collaborative features to add to a chat and live canvas application.">
+            💡 <strong>Feature Ideas</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Brainstorm next-gen collaborative tools</span>
+          </button>
+          <button class="ai-prompt-chip" data-prompt="Help me write clean Java Spring Boot code for caching and optimistic locking.">
+            🚀 <strong>Spring Boot Patterns</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Concurrency, caching & clean architecture</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Input Bar -->
+    <div class="ai-input-bar-container">
+      <div class="ai-input-bar">
+        <input type="text" id="aiChatInput" placeholder="Ask IRIS AI anything... (Press Enter to send)" autocomplete="off">
+        <button id="btnAiChatSend" class="btn-ai-send">
+          <span>Send</span> <span>➤</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH SCREEN -->
+  <div id="authScreen" class="auth-container">
+    <div class="auth-card">
+      <div style="text-align: center; margin-bottom: 1.25rem;">
+        <div style="display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;">
+          <div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, #6366f1, #ec4899); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:1.3rem; box-shadow:0 4px 14px rgba(99,102,241,0.4);">◈</div>
+          <span style="font-size:1.85rem; font-weight:800; letter-spacing:0.06em; background:linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">IRIS</span>
+        </div>
+      </div>
+      <h2 id="authTitle">Welcome Back</h2>
+      <p class="subtitle" id="authSubtitle">Log in to your IRIS account</p>
+
+      <!-- Login Form -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="loginEmail" required placeholder="alex@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn">Sign In</button>
+        <div class="auth-toggle">
+          Don't have an account? <a id="showRegister">Sign up</a>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="hidden">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="regFullName" required placeholder="Alex Mercer">
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="regUserName" required placeholder="alexm">
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" required placeholder="alex@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="regPassword" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label>Profile Picture <span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">(Optional)</span></label>
+          <input type="file" id="regProfileImage" accept="image/*">
+        </div>
+        <button type="submit" class="btn">Create Account</button>
+        <div class="auth-toggle">
+          Already have an account? <a id="showLogin">Log in</a>
+        </div>
+      </form>
+
+      <div style="text-align:center; margin-top:1.25rem;">
+        <span id="btnConfigServer" style="font-size:0.75rem; color:var(--text-muted); cursor:pointer; text-decoration:underline;">
+          ⚙️ Backend: <span id="currentServerLabel"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CHAT APP SCREEN -->
+  <div id="appScreen" class="app-container hidden">
+    <!-- Left Sidebar -->
+    <div class="sidebar-left">
+      <div style="padding: 0.85rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border);">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, #6366f1, #ec4899); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 0.85rem; box-shadow: 0 2px 8px rgba(99,102,241,0.3);">◈</div>
+          <span style="font-weight: 800; font-size: 1.15rem; letter-spacing: 0.05em; background: linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">IRIS</span>
+        </div>
+        <span style="font-size: 0.7rem; color: var(--text-muted); padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);">Online</span>
+      </div>
+      <div class="my-profile-header">
+        <img id="myAvatar" src="" alt="Avatar">
+        <div class="my-info">
+          <div class="name" id="myName">My Name</div>
+          <div class="tag" id="myUsername">@username</div>
+        </div>
+        <button class="btn-logout" id="logoutBtn">Log out</button>
+      </div>
+
+      <!-- Dedicated AI Assistant Portal Button -->
+      <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--card-border);">
+        <button id="btnNavAiAssistant" class="btn-ai-portal" title="Open dedicated IRIS AI Assistant">
+          <span style="font-size: 1.15rem;">🤖</span>
+          <span style="flex: 1; text-align: left; font-weight: 700; font-size: 0.88rem;">IRIS AI Assistant</span>
+          <span class="ai-chip">PORTAL</span>
+        </button>
+      </div>
+
+      <div class="users-scroll">
+        <!-- Chat Groups Section -->
+        <div class="section-header-row">
+          <div class="section-title">Chat Groups</div>
+          <button id="btnOpenCreateGroup" class="btn-create-group">+ New Group</button>
+        </div>
+        <div id="groupsList"></div>
+
+        <!-- Friend Requests -->
+        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">Friend Requests</div>
+        <div id="friendRequestsList"></div>
+
+        <!-- Friends List -->
+        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">Your Friends</div>
+        <div id="friendsList"></div>
+
+        <!-- Other Users -->
+        <div class="section-title" style="margin-top: 1rem; margin-bottom: 0.5rem;">Other Users</div>
+        <div id="otherUsersList"></div>
+      </div>
+    </div>
+
+    <!-- Center Chat Window -->
+    <div class="chat-window">
+      <div class="chat-header hidden" id="chatHeader">
+        <button id="btnMobileBack" class="btn-mobile-back" title="Back to chats">←</button>
+        <img id="activeChatAvatar" src="" alt="Avatar">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="activeChatName">Chat Name</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="activeChatStatus">Online</div>
+        </div>
+        <div class="group-header-actions hidden" id="groupHeaderActions" style="display:inline-flex; align-items:center; gap:0.4rem; margin-right: 0.4rem;">
+          <button class="btn-group-action" id="btnViewGroupMembers" title="View group members & kick options">👥 Members</button>
+          <button class="btn-group-action btn-group-leave" id="btnLeaveGroupHeader" title="Leave this group">🚪 Leave</button>
+        </div>
+        <button class="btn-draw-together" id="btnToggleCanvas" title="Open big collaborative drawing canvas">
+          <span>🎨</span> <span id="btnDrawText">Live Canvas</span>
+        </button>
+      </div>
+
+      <div class="chat-content-area">
+        <!-- Chat Messages List -->
+        <div class="chat-messages" id="chatMessages">
+          <div style="margin: auto; color: var(--text-muted); text-align: center;">
+            Select a friend or group from the left sidebar to start messaging.
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-bar hidden" id="chatInputBar">
+        <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function isTokenExpired(t) {
+      if (!t || t === 'undefined' || t === 'null') return true;
+      try {
+        const parts = t.split('.');
+        if (parts.length < 2) return true;
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        if (!payload.exp) return false;
+        return (payload.exp * 1000) <= (Date.now() + 10000);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    let token = localStorage.getItem('token');
+    if (!token || token === 'undefined' || token === 'null' || isTokenExpired(token)) {
+      token = null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+    }
+    let currentUser = null;
+    try {
+      const stored = localStorage.getItem('currentUser');
+      if (stored && stored !== 'undefined' && stored !== 'null' && token) currentUser = JSON.parse(stored);
+    } catch (e) {
+      currentUser = null;
+    }
+
+    let hub = null;
+    let allUsers = [];
+    let myGroups = [];
+    let currentChatType = null; // 'friend' or 'group'
+    let selectedFriendId = null;
+    let selectedFriendObj = null;
+    let selectedGroupId = null;
+    let selectedGroupObj = null;
+    let typingTimer = null;
+
+    // Fast-boot: Immediately show app screen if valid cached credentials exist
+    if (token && currentUser) {
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('appScreen').classList.remove('hidden');
+      if (currentUser.profileImage) document.getElementById('myAvatar').src = currentUser.profileImage;
+      if (currentUser.fullName) document.getElementById('myName').innerText = currentUser.fullName;
+      if (currentUser.userName) document.getElementById('myUsername').innerText = '@' + currentUser.userName;
+    }
+
+    const DEFAULT_RENDER_URL = 'https://iris-v5ep.onrender.com';
+    let API_BASE = localStorage.getItem('chat_api_url') || (
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? window.location.origin
+        : DEFAULT_RENDER_URL
+    );
+    if (API_BASE.endsWith('/')) API_BASE = API_BASE.slice(0, -1);
+
+    function updateServerLabel() {
+      const el = document.getElementById('currentServerLabel');
+      if (el) el.textContent = API_BASE;
+    }
+    updateServerLabel();
+
+    const configBtn = document.getElementById('btnConfigServer');
+    if (configBtn) {
+      configBtn.onclick = () => {
+        const customUrl = prompt('Enter backend API URL (e.g. https://iris-v5ep.onrender.com):', API_BASE);
+        if (customUrl !== null) {
+          const trimmed = customUrl.trim().replace(/\/$/, '');
+          if (trimmed) {
+            localStorage.setItem('chat_api_url', trimmed);
+            API_BASE = trimmed;
+          } else {
+            localStorage.removeItem('chat_api_url');
+            API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+              ? window.location.origin
+              : DEFAULT_RENDER_URL;
+          }
+          updateServerLabel();
+          showToast('Backend URL updated: ' + API_BASE);
+        }
+      };
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function stringToColor(str) {
+      const colors = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#f43f5e', '#14b8a6'];
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    // Toggle Login / Register
+    document.getElementById('showRegister').onclick = () => {
+      document.getElementById('loginForm').classList.add('hidden');
+      document.getElementById('registerForm').classList.remove('hidden');
+      document.getElementById('authTitle').innerText = 'Create Account';
+      document.getElementById('authSubtitle').innerText = 'Join the IRIS community';
+    };
+    document.getElementById('showLogin').onclick = () => {
+      document.getElementById('registerForm').classList.add('hidden');
+      document.getElementById('loginForm').classList.remove('hidden');
+      document.getElementById('authTitle').innerText = 'Welcome Back';
+      document.getElementById('authSubtitle').innerText = 'Log in to your IRIS account';
+    };
+
+    // Register Handler
+    document.getElementById('registerForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('fullName', document.getElementById('regFullName').value);
+      formData.append('userName', document.getElementById('regUserName').value);
+      formData.append('email', document.getElementById('regEmail').value);
+      formData.append('password', document.getElementById('regPassword').value);
+      const fileInput = document.getElementById('regProfileImage');
+      if (fileInput.files && fileInput.files.length > 0 && fileInput.files[0]) {
+        formData.append('profileImage', fileInput.files[0]);
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/account/register`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast('Account created! Logging you in...');
+          document.getElementById('loginEmail').value = document.getElementById('regEmail').value;
+          document.getElementById('loginPassword').value = document.getElementById('regPassword').value;
+          document.getElementById('showLogin').click();
+          document.getElementById('loginForm').requestSubmit();
+        } else {
+          showToast('Error: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        showToast('Registration failed: ' + err.message);
+      }
+    };
+
+    // Login Handler
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/account/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          token = data.data;
+          localStorage.setItem('token', token);
+          initApp();
+        } else {
+          showToast('Login failed: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        showToast('Login failed: ' + err.message);
+      }
+    };
+
+    function logoutUser() {
+      token = null;
+      currentUser = null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      if (hub) {
+        try { hub.stop(); } catch (e) {}
+        hub = null;
+      }
+      document.getElementById('appScreen').classList.add('hidden');
+      document.getElementById('authScreen').classList.remove('hidden');
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.onclick = logoutUser;
+
+    async function initApp() {
+      if (!token || token === 'undefined' || token === 'null' || isTokenExpired(token)) {
+        logoutUser();
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/account/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          console.warn('Session expired or invalid (HTTP ' + res.status + ').');
+          logoutUser();
+          showToast('Session expired. Please sign in again.');
+          return;
+        }
+
+        const meData = await res.json();
+        if (!meData.isSuccess || !meData.data) {
+          console.warn('User profile fetch failed.');
+          logoutUser();
+          showToast('Session invalid. Please sign in.');
+          return;
+        }
+
+        currentUser = meData.data;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+
+        document.getElementById('myAvatar').src = currentUser.profileImage || 'https://via.placeholder.com/50';
+        document.getElementById('myName').innerText = currentUser.fullName;
+        document.getElementById('myUsername').innerText = '@' + currentUser.userName;
+
+        loadAllUsers();
+        connectSignalR();
+        loadFriendRequests();
+        loadSentFriendRequests();
+        loadMyGroups();
+        setupCanvasModule();
+        setupAiAssistantModule();
+      } catch (err) {
+        console.error('initApp network or cold start:', err);
+        // Retry connection after 3.5s if server was waking from cold start
+        setTimeout(() => {
+          if (token && !isTokenExpired(token) && (!currentUser || !hub)) initApp();
+        }, 3500);
+      }
+    }
+
+    async function loadAllUsers() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/account/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.isSuccess && Array.isArray(data.data)) {
+          const onlineMap = new Map(allUsers.map(u => [u.id, u.isOnline]));
+          allUsers = data.data.map(u => ({
+            ...u,
+            isOnline: onlineMap.get(u.id) || false
+          }));
+          renderUsers();
+          const modal = document.getElementById('groupMembersModal');
+          if (modal && !modal.classList.contains('hidden')) {
+            renderAddableUsersList();
+          }
+        }
+      } catch (err) {
+        console.error('loadAllUsers error:', err);
+      }
+    }
+
+    function connectSignalR() {
+      if (!token || token === 'undefined' || token === 'null' || isTokenExpired(token)) {
+        logoutUser();
+        return;
+      }
+      if (hub && hub.state === signalR.HubConnectionState.Connected) return;
+
+      const hubUrl = `${API_BASE}/hubs/chat`;
+      hub = new signalR.HubConnectionBuilder()
+        .withUrl(hubUrl, {
+          accessTokenFactory: () => token,
+          transport: signalR.HttpTransportType.WebSockets
+        })
+        .withAutomaticReconnect({
+          nextRetryDelayInMilliseconds: retryContext => {
+            if (!token || isTokenExpired(token)) {
+              console.warn('Aborting SignalR reconnect: token is expired.');
+              logoutUser();
+              showToast('Session expired. Please log in.');
+              return null;
+            }
+            const delays = [0, 2000, 5000, 10000, 20000];
+            return delays[retryContext.previousRetryCount] !== undefined ? delays[retryContext.previousRetryCount] : 20000;
+          }
+        })
+        .build();
+
+      hub.onreconnecting((err) => {
+        console.warn('SignalR reconnecting...', err);
+        if (!token || isTokenExpired(token)) {
+          logoutUser();
+          showToast('Session expired. Please log in.');
+        }
+      });
+
+      hub.onclose((err) => {
+        console.warn('SignalR connection closed:', err);
+        if (!token || isTokenExpired(token) || (err && (err.message && (err.message.includes('4001') || err.message.includes('Unauthorized'))))) {
+          showToast('Session expired. Please log in.');
+          logoutUser();
+        }
+      });
+
+      hub.on('OnlineUsers', (users) => {
+        const onlineMap = new Map((users || []).map(u => [u.id, u]));
+        if (allUsers.length === 0) {
+          allUsers = users || [];
+        } else {
+          allUsers = allUsers.map(u => ({
+            ...u,
+            isOnline: onlineMap.has(u.id) ? (onlineMap.get(u.id).isOnline !== false) : false
+          }));
+          const existingIds = new Set(allUsers.map(u => u.id));
+          (users || []).forEach(u => {
+            if (!existingIds.has(u.id)) allUsers.push(u);
+          });
+        }
+        renderUsers();
+        const modal = document.getElementById('groupMembersModal');
+        if (modal && !modal.classList.contains('hidden')) {
+          renderAddableUsersList();
+        }
+      });
+
+      hub.on('ReceiveMessageList', (messages) => {
+        renderMessages(messages);
+      });
+
+      hub.on('ReceiveNewMessage', (message) => {
+        if (currentChatType === 'friend' && selectedFriendId &&
+           (message.senderId === selectedFriendId || message.receiverId === selectedFriendId)) {
+          appendMessage(message);
+        }
+      });
+
+      hub.on('ReceiveNewGroupMessage', (message) => {
+        if (currentChatType === 'group' && selectedGroupId && message.groupId === selectedGroupId) {
+          // If we didn't already append it locally
+          if (message.senderId !== currentUser.id) {
+            appendMessage(message);
+          }
+        }
+      });
+
+      hub.on('NotifyTypingToUser', (userName) => {
+        if (currentChatType === 'friend' && selectedFriendObj && selectedFriendObj.userName === userName) {
+          document.getElementById('activeChatStatus').innerText = 'Typing...';
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => {
+            document.getElementById('activeChatStatus').innerText = selectedFriendObj.isOnline ? 'Online' : 'Offline';
+          }, 3000);
+        }
+      });
+
+      hub.on('Notify', (user) => {
+        showToast(`${user.fullName} is online.`);
+      });
+
+      // ============================================
+      // REAL-TIME FRIEND REQUEST SIGNALR LISTENERS
+      // ============================================
+      hub.on('ReceiveFriendRequest', (data) => {
+        showToast(`🔔 New friend request received from ${data.senderName || 'someone'}!`);
+        loadFriendRequests();
+      });
+
+      hub.on('FriendRequestAccepted', async (data) => {
+        showToast('🎉 Friend request accepted! You are now friends.');
+        await refreshCurrentUserProfile();
+        await loadAllUsers();
+        await loadFriendRequests();
+        await loadSentFriendRequests();
+        renderUsers();
+      });
+
+      hub.on('FriendRequestRejected', () => {
+        showToast('Friend request was declined.');
+        loadSentFriendRequests();
+        renderUsers();
+      });
+
+      // ============================================
+      // LIVE COLLABORATIVE CANVAS SIGNALR LISTENERS
+      // ============================================
+      // 1-on-1 Canvas Events (Room-Isolated)
+      hub.on('ReceiveCanvasDraw', (drawData) => {
+        if (!drawData) return;
+        const currentKey = getRoomKey();
+        const incomingKey = drawData.groupId ? ('group_' + drawData.groupId) : ('friend_' + drawData.senderId);
+
+        if (incomingKey === currentKey) {
+          drawRemoteStroke(drawData);
+          saveHistory();
+        } else {
+          // Offscreen room memory isolation - never leaks to current visible canvas!
+          applyRemoteStrokeToRoom(incomingKey, drawData);
+        }
+      });
+
+      hub.on('ReceiveCanvasClear', (clearData) => {
+        const currentKey = getRoomKey();
+        const incomingKey = clearData && clearData.groupId ? ('group_' + clearData.groupId) : (clearData && clearData.senderId ? ('friend_' + clearData.senderId) : currentKey);
+
+        if (incomingKey === currentKey) {
+          clearCanvasLocal();
+          saveHistory();
+          showToast((clearData && clearData.senderName ? clearData.senderName : 'Partner') + ' cleared the canvas');
+        } else if (canvasRooms[incomingKey]) {
+          canvasRooms[incomingKey] = { history: [], redoStack: [] };
+        }
+      });
+
+      hub.on('ReceiveCanvasCursor', (cursorData) => {
+        if (!cursorData) return;
+        const currentKey = getRoomKey();
+        const incomingKey = cursorData.groupId ? ('group_' + cursorData.groupId) : ('friend_' + cursorData.senderId);
+
+        if (incomingKey === currentKey && isCanvasOpen) {
+          updateRemoteCursorPosition(cursorData);
+        }
+      });
+
+      hub.on('ReceiveToggleCanvas', (toggleData) => {
+        const currentKey = getRoomKey();
+        const incomingKey = 'friend_' + (toggleData.senderId || '');
+        if (incomingKey === currentKey || !selectedFriendId) {
+          if (toggleData.isOpen) {
+            openCanvasOverlay();
+            showToast(`🎨 ${toggleData.senderName || 'Friend'} opened the live canvas!`);
+          } else {
+            closeCanvasOverlay();
+          }
+        }
+      });
+
+      // Group Canvas Events (Room-Isolated)
+      hub.on('ReceiveGroupCanvasDraw', (drawData) => {
+        if (!drawData) return;
+        const currentKey = getRoomKey();
+        const incomingKey = 'group_' + drawData.groupId;
+
+        if (incomingKey === currentKey) {
+          drawRemoteStroke(drawData);
+          saveHistory();
+        } else {
+          applyRemoteStrokeToRoom(incomingKey, drawData);
+        }
+      });
+
+      hub.on('ReceiveGroupCanvasClear', (data) => {
+        const currentKey = getRoomKey();
+        const incomingKey = 'group_' + data.groupId;
+
+        if (incomingKey === currentKey) {
+          clearCanvasLocal();
+          saveHistory();
+          showToast(`🎨 ${data.senderName || 'Member'} cleared the group canvas`);
+        } else if (canvasRooms[incomingKey]) {
+          canvasRooms[incomingKey] = { history: [], redoStack: [] };
+        }
+      });
+
+      hub.on('ReceiveGroupCanvasCursor', (cursorData) => {
+        if (!cursorData) return;
+        const currentKey = getRoomKey();
+        const incomingKey = 'group_' + cursorData.groupId;
+
+        if (incomingKey === currentKey && isCanvasOpen) {
+          updateRemoteCursorPosition(cursorData);
+        }
+      });
+
+      hub.on('ReceiveToggleGroupCanvas', (toggleData) => {
+        if (currentChatType === 'group' && selectedGroupId && toggleData.groupId === selectedGroupId) {
+          if (toggleData.isOpen) {
+            openCanvasOverlay();
+            showToast(`🎨 ${toggleData.senderName || 'Member'} opened the live group canvas!`);
+          } else {
+            closeCanvasOverlay();
+          }
+        }
+      });
+
+      hub.start()
+        .then(() => console.log('SignalR connected successfully!'))
+        .catch((err) => {
+          console.error('SignalR start error:', err);
+          if (!token || isTokenExpired(token) || (err && (err.message && (err.message.includes('4001') || err.message.includes('Unauthorized'))))) {
+            logoutUser();
+            showToast('Session expired. Please log in.');
+          }
+        });
+    }
+
+    // ============================================
+    // GROUPS MANAGEMENT
+    // ============================================
+    async function loadMyGroups() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/group/my-groups`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          myGroups = data.data || [];
+          renderGroups();
+        }
+      } catch (err) {
+        console.error('Error loading groups:', err);
+      }
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('groupsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (myGroups.length === 0) {
+        container.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding:0.3rem 0.5rem;">No groups yet. Click + New Group!</div>';
+        return;
+      }
+
+      myGroups.forEach(g => {
+        const item = document.createElement('div');
+        const isActive = currentChatType === 'group' && selectedGroupId === g.id;
+        item.className = 'user-item' + (isActive ? ' active' : '');
+
+        const memberCount = (g.memberIds && g.memberIds.length) || 1;
+        const initial = (g.name || 'G').charAt(0).toUpperCase();
+
+        item.innerHTML = `
+          <div class="group-avatar">${initial}</div>
+          <div class="user-meta">
+            <div class="u-name">${escapeHtml(g.name)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">👥 ${memberCount} member${memberCount > 1 ? 's' : ''}</div>
+          </div>
+        `;
+        item.onclick = () => selectGroup(g);
+        container.appendChild(item);
+      });
+    }
+
+    function selectGroup(group) {
+      if (typeof saveCurrentRoomCanvas === 'function') {
+        saveCurrentRoomCanvas();
+      }
+      currentChatType = 'group';
+      selectedGroupId = group.id;
+      selectedGroupObj = group;
+      selectedFriendId = null;
+      selectedFriendObj = null;
+
+      document.body.classList.add('chat-open');
+      document.getElementById('chatHeader').classList.remove('hidden');
+      document.getElementById('chatInputBar').classList.remove('hidden');
+
+      const avatarEl = document.getElementById('activeChatAvatar');
+      avatarEl.src = group.groupImage || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=100&h=100&fit=crop';
+      document.getElementById('activeChatName').innerText = group.name;
+      const count = (group.memberIds && group.memberIds.length) || 1;
+      const statusEl = document.getElementById('activeChatStatus');
+      statusEl.innerHTML = `Group • <b>${count} member${count > 1 ? 's' : ''}</b> <span style="font-size:0.75rem; text-decoration:underline; opacity:0.8;">(View)</span>`;
+      statusEl.style.cursor = 'pointer';
+      statusEl.onclick = openGroupMembersModal;
+
+      document.getElementById('groupHeaderActions').classList.remove('hidden');
+
+      renderGroups();
+      renderUsers();
+
+      if (typeof switchRoomCanvas === 'function') {
+        switchRoomCanvas();
+      }
+
+      document.getElementById('chatMessages').innerHTML = '';
+      hub.invoke('LoadGroupMessages', group.id, 1);
+    }
+
+    // Create Group Modal
+    function openCreateGroupModal() {
+      const modal = document.getElementById('createGroupModal');
+      const checklist = document.getElementById('groupFriendsChecklist');
+      checklist.innerHTML = '';
+
+      const myFriendsIds = (currentUser && currentUser.friendsId) || [];
+      const candidateUsers = allUsers.filter(u => u.id !== currentUser.id);
+
+      if (candidateUsers.length === 0) {
+        checklist.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:0.5rem;">No other users found yet. Create the group and add members anytime!</div>';
+      } else {
+        // Sort so friends appear first
+        candidateUsers.sort((a, b) => {
+          const aFriend = myFriendsIds.includes(a.id) ? 1 : 0;
+          const bFriend = myFriendsIds.includes(b.id) ? 1 : 0;
+          return bFriend - aFriend;
+        });
+
+        candidateUsers.forEach(f => {
+          const isFriend = myFriendsIds.includes(f.id);
+          const row = document.createElement('label');
+          row.className = 'friend-check-item';
+          row.innerHTML = `
+            <input type="checkbox" value="${f.id}">
+            <img src="${f.profilePicture || 'https://via.placeholder.com/28'}" alt="${escapeHtml(f.fullName)}">
+            <span style="font-size:0.9rem; font-weight:600;">${escapeHtml(f.fullName)}</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);">(@${escapeHtml(f.userName)})${isFriend ? ' • Friend' : ''}</span>
+          `;
+          checklist.appendChild(row);
+        });
+      }
+
+      document.getElementById('newGroupName').value = '';
+      modal.classList.remove('hidden');
+    }
+
+    function closeCreateGroupModal() {
+      document.getElementById('createGroupModal').classList.add('hidden');
+    }
+
+    document.getElementById('btnOpenCreateGroup').onclick = openCreateGroupModal;
+    document.getElementById('btnCloseGroupModal').onclick = closeCreateGroupModal;
+    document.getElementById('btnCancelGroupModal').onclick = closeCreateGroupModal;
+
+    document.getElementById('createGroupForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('newGroupName').value.trim();
+      if (!name) return;
+
+      const checkedBoxes = document.querySelectorAll('#groupFriendsChecklist input[type="checkbox"]:checked');
+      const selectedMemberIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: name,
+            memberIds: selectedMemberIds
+          })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Group "${name}" created!`);
+          closeCreateGroupModal();
+          await loadMyGroups();
+          if (data.data) {
+            selectGroup(data.data);
+          }
+        } else {
+          showToast('Error: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        showToast('Failed to create group: ' + err.message);
+      }
+    };
+
+    // ============================================
+    // GROUP MEMBERS & LEAVE / KICK
+    // ============================================
+    let currentGroupMembers = [];
+
+    async function openGroupMembersModal() {
+      if (!selectedGroupId || !selectedGroupObj) return;
+      const modal = document.getElementById('groupMembersModal');
+      const listEl = document.getElementById('groupMembersList');
+      const searchInput = document.getElementById('groupAddMemberSearch');
+      if (searchInput) searchInput.value = '';
+
+      document.getElementById('groupModalTitle').innerText = selectedGroupObj.name;
+      document.getElementById('groupModalSubtitle').innerText = 'Loading group members...';
+      listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:1rem; text-align:center;">Loading members...</div>';
+      modal.classList.remove('hidden');
+
+      await refreshGroupMembersData();
+    }
+
+    async function refreshGroupMembersData() {
+      if (!selectedGroupId) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/group/${selectedGroupId}/members`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          currentGroupMembers = data.data || [];
+          renderGroupMembersModalList();
+        } else {
+          document.getElementById('groupMembersList').innerHTML = '<div style="color:#ef4444; font-size:0.85rem; padding:1rem; text-align:center;">Failed to load members</div>';
+        }
+      } catch (err) {
+        console.error('Error loading group members:', err);
+        document.getElementById('groupMembersList').innerHTML = '<div style="color:#ef4444; font-size:0.85rem; padding:1rem; text-align:center;">Failed to load members</div>';
+      }
+    }
+
+    function renderGroupMembersModalList() {
+      const listEl = document.getElementById('groupMembersList');
+      listEl.innerHTML = '';
+
+      const isCurrentUserManager = currentUser && selectedGroupObj && (currentUser.id === selectedGroupObj.creatorId);
+      const total = currentGroupMembers.length;
+      document.getElementById('groupModalSubtitle').innerText = `${total} member${total !== 1 ? 's' : ''} ${isCurrentUserManager ? '• 👑 You are Creator (can kick members)' : ''}`;
+
+      if (currentGroupMembers.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:1rem; text-align:center;">No members found</div>';
+      } else {
+        currentGroupMembers.forEach(m => {
+          const item = document.createElement('div');
+          item.className = 'member-item';
+
+          const isMe = currentUser && m.id === currentUser.id;
+          const canKickThisMember = isCurrentUserManager && !isMe;
+
+          item.innerHTML = `
+            <div class="member-info">
+              <img src="${m.profileImage || 'https://via.placeholder.com/36'}" alt="${escapeHtml(m.fullName)}">
+              <div class="member-names">
+                <div class="m-name">
+                  ${escapeHtml(m.fullName)}
+                  ${isMe ? '<span style="font-size:0.75rem; color:var(--primary); font-weight:600;">(You)</span>' : ''}
+                  ${m.isCreator ? '<span class="badge-creator">👑 Creator</span>' : ''}
+                </div>
+                <div class="m-user">@${escapeHtml(m.userName)}</div>
+              </div>
+            </div>
+            <div class="member-actions">
+              ${canKickThisMember ? `<button class="btn-kick" data-user-id="${m.id}">❌ Kick</button>` : ''}
+            </div>
+          `;
+
+          if (canKickThisMember) {
+            const kickBtn = item.querySelector('.btn-kick');
+            kickBtn.onclick = () => kickGroupMember(m.id, m.fullName);
+          }
+
+          listEl.appendChild(item);
+        });
+      }
+
+      renderAddableUsersList();
+    }
+
+    function renderAddableUsersList() {
+      const addListEl = document.getElementById('groupAddMembersList');
+      const countEl = document.getElementById('groupAddableCount');
+      if (!addListEl) return;
+      addListEl.innerHTML = '';
+
+      const memberIds = new Set(currentGroupMembers.map(m => m.id));
+      if (selectedGroupObj && selectedGroupObj.memberIds) {
+        selectedGroupObj.memberIds.forEach(id => memberIds.add(id));
+      }
+
+      const query = (document.getElementById('groupAddMemberSearch')?.value || '').trim().toLowerCase();
+      let candidates = allUsers.filter(u => !memberIds.has(u.id));
+
+      if (query) {
+        candidates = candidates.filter(u =>
+          (u.fullName && u.fullName.toLowerCase().includes(query)) ||
+          (u.userName && u.userName.toLowerCase().includes(query))
+        );
+      }
+
+      if (countEl) {
+        countEl.innerText = `${candidates.length} available`;
+      }
+
+      if (candidates.length === 0) {
+        addListEl.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; padding:0.75rem; text-align:center;">${query ? 'No matching users found' : 'All registered users are already in this group'}</div>`;
+        return;
+      }
+
+      candidates.forEach(u => {
+        const item = document.createElement('div');
+        item.className = 'member-item';
+        item.style.padding = '0.45rem 0.65rem';
+        item.innerHTML = `
+          <div class="member-info">
+            <img src="${u.profilePicture || 'https://via.placeholder.com/32'}" alt="${escapeHtml(u.fullName)}" style="width:32px; height:32px;">
+            <div class="member-names">
+              <div class="m-name" style="font-size:0.85rem;">${escapeHtml(u.fullName)}</div>
+              <div class="m-user" style="font-size:0.7rem;">@${escapeHtml(u.userName)}</div>
+            </div>
+          </div>
+          <div class="member-actions">
+            <button class="btn-add-member" data-user-id="${u.id}">➕ Add</button>
+          </div>
+        `;
+
+        const addBtn = item.querySelector('.btn-add-member');
+        addBtn.onclick = () => addMemberToCurrentGroup(u);
+
+        addListEl.appendChild(item);
+      });
+    }
+
+    async function addMemberToCurrentGroup(user) {
+      if (!selectedGroupId || !selectedGroupObj) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/add-member`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            groupId: selectedGroupId,
+            userId: user.id
+          })
+        });
+
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Added ${user.fullName} to ${selectedGroupObj.name}!`);
+          if (selectedGroupObj.memberIds && !selectedGroupObj.memberIds.includes(user.id)) {
+            selectedGroupObj.memberIds.push(user.id);
+          }
+          await refreshGroupMembersData();
+          await loadMyGroups();
+          const count = (selectedGroupObj.memberIds && selectedGroupObj.memberIds.length) || currentGroupMembers.length;
+          const statusEl = document.getElementById('activeChatStatus');
+          statusEl.innerHTML = `Group • <b>${count} member${count > 1 ? 's' : ''}</b> <span style="font-size:0.75rem; text-decoration:underline; opacity:0.8;">(View)</span>`;
+        } else {
+          showToast(data.message || 'Failed to add member');
+        }
+      } catch (err) {
+        console.error('Error adding member:', err);
+        showToast('Failed to add member: ' + err.message);
+      }
+    }
+
+    async function kickGroupMember(memberId, memberName) {
+      if (!confirm(`Are you sure you want to remove ${memberName} from this group?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/kick-member`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            groupId: selectedGroupId,
+            userId: memberId
+          })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Removed ${memberName} from the group`);
+          if (selectedGroupObj && selectedGroupObj.memberIds) {
+            selectedGroupObj.memberIds = selectedGroupObj.memberIds.filter(id => id !== memberId);
+          }
+          currentGroupMembers = currentGroupMembers.filter(m => m.id !== memberId);
+          renderGroupMembersModalList();
+          const count = (selectedGroupObj.memberIds && selectedGroupObj.memberIds.length) || currentGroupMembers.length;
+          const statusEl = document.getElementById('activeChatStatus');
+          statusEl.innerHTML = `Group • <b>${count} member${count > 1 ? 's' : ''}</b> <span style="font-size:0.75rem; text-decoration:underline; opacity:0.8;">(View)</span>`;
+          await loadMyGroups();
+        } else {
+          showToast(data.message || 'Failed to remove member');
+        }
+      } catch (err) {
+        console.error('Error kicking member:', err);
+        showToast('Failed to remove member');
+      }
+    }
+
+    async function leaveCurrentGroup() {
+      if (!selectedGroupId || !selectedGroupObj) return;
+      const groupName = selectedGroupObj.name || 'this group';
+      if (!confirm(`Are you sure you want to leave "${groupName}"?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/group/leave`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ groupId: selectedGroupId })
+        });
+        const data = await res.json();
+        if (data.isSuccess) {
+          showToast(`Left ${groupName}`);
+          closeGroupMembersModal();
+          currentChatType = null;
+          selectedGroupId = null;
+          selectedGroupObj = null;
+          document.body.classList.remove('chat-open');
+          document.getElementById('chatHeader').classList.add('hidden');
+          document.getElementById('chatInputBar').classList.add('hidden');
+          document.getElementById('chatMessages').innerHTML = '';
+          closeCanvasPanel();
+          await loadMyGroups();
+        } else {
+          showToast(data.message || 'Failed to leave group');
+        }
+      } catch (err) {
+        console.error('Error leaving group:', err);
+        showToast('Failed to leave group');
+      }
+    }
+
+    function closeGroupMembersModal() {
+      document.getElementById('groupMembersModal').classList.add('hidden');
+    }
+
+    document.getElementById('btnViewGroupMembers').onclick = openGroupMembersModal;
+    document.getElementById('btnLeaveGroupHeader').onclick = leaveCurrentGroup;
+    document.getElementById('btnCloseGroupMembersModal').onclick = closeGroupMembersModal;
+    document.getElementById('btnDoneGroupMembers').onclick = closeGroupMembersModal;
+    document.getElementById('btnModalLeaveGroup').onclick = leaveCurrentGroup;
+    const groupSearchInput = document.getElementById('groupAddMemberSearch');
+    if (groupSearchInput) {
+      groupSearchInput.oninput = () => renderAddableUsersList();
+    }
+
+    // ============================================
+    // USERS & FRIENDS
+    // ============================================
+    let sentRequestReceiverIds = new Set();
+
+    async function refreshCurrentUserProfile() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/account/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const meData = await res.json();
+        if (meData.isSuccess && meData.data) {
+          currentUser = meData.data;
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        }
+      } catch (e) {}
+    }
+
+    async function loadSentFriendRequests() {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/account/firendsrequestssendbyme?senderId=${currentUser.id}`);
+        const data = await res.json();
+        if (data.isSuccess && Array.isArray(data.data)) {
+          sentRequestReceiverIds = new Set(data.data.map(r => r.receiverId));
+        }
+      } catch (err) {
+        console.error('Error loading sent friend requests:', err);
+      }
+    }
+
+    async function loadFriendRequests() {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/account/firendsrequestsforme?receiverId=${currentUser.id}`);
+        const data = await res.json();
+        const reqList = document.getElementById('friendRequestsList');
+        reqList.innerHTML = '';
+
+        if (data.isSuccess && data.data && data.data.length > 0) {
+          for (const req of data.data) {
+            const sender = allUsers.find(u => u.id === req.senderId);
+            const senderName = sender ? sender.fullName : ('User ' + (req.senderId ? req.senderId.substring(0, 8) : ''));
+            const senderAvatar = sender ? (sender.profilePicture || 'https://via.placeholder.com/32') : 'https://via.placeholder.com/32';
+            const senderUsername = sender ? ('@' + sender.userName) : '';
+
+            const reqDiv = document.createElement('div');
+            reqDiv.className = 'user-item';
+            reqDiv.innerHTML = `
+              <div class="avatar-wrapper">
+                <img src="${senderAvatar}" alt="Avatar">
+              </div>
+              <div class="user-meta" style="flex:1;">
+                <div class="u-name">${escapeHtml(senderName)}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(senderUsername)}</div>
+              </div>
+              <div style="display:flex; gap:4px;">
+                <button class="btn-action-small btn-accept-req" style="background:#10b981;">Accept</button>
+                <button class="btn-action-small btn-decline-req" style="background:#ef4444;">Decline</button>
+              </div>
+            `;
+
+            // Accept button
+            reqDiv.querySelector('.btn-accept-req').onclick = async (e) => {
+              e.stopPropagation();
+              try {
+                await fetch(`${API_BASE}/api/account/acceptrequest`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ senderId: req.senderId, receiverId: req.receiverId })
+                });
+                if (currentUser.friendsId && !currentUser.friendsId.includes(req.senderId)) {
+                  currentUser.friendsId.push(req.senderId);
+                }
+                showToast(`Accepted friend request from ${senderName}!`);
+                await refreshCurrentUserProfile();
+                await loadAllUsers();
+                await loadFriendRequests();
+                await loadSentFriendRequests();
+                renderUsers();
+                if (sender) selectFriend(sender);
+              } catch (err) {
+                showToast('Failed to accept request');
+              }
+            };
+
+            // Decline button
+            reqDiv.querySelector('.btn-decline-req').onclick = async (e) => {
+              e.stopPropagation();
+              try {
+                await fetch(`${API_BASE}/api/account/rejectrequest`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ senderId: req.senderId, receiverId: req.receiverId })
+                });
+                showToast(`Declined request from ${senderName}`);
+                await loadFriendRequests();
+                renderUsers();
+              } catch (err) {
+                showToast('Failed to decline request');
+              }
+            };
+
+            reqList.appendChild(reqDiv);
+          }
+        } else {
+          reqList.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding:0.2rem 0.5rem;">No pending requests</div>';
+        }
+      } catch (err) {
+        console.error('Error loading friend requests:', err);
+      }
+    }
+
+    function renderUsers() {
+      const friendsListEl = document.getElementById('friendsList');
+      const otherListEl = document.getElementById('otherUsersList');
+      friendsListEl.innerHTML = '';
+      otherListEl.innerHTML = '';
+
+      const myFriendsIds = (currentUser && currentUser.friendsId) || [];
+
+      allUsers.filter(u => u.id !== currentUser.id).forEach(u => {
+        const isFriend = myFriendsIds.includes(u.id);
+        const item = document.createElement('div');
+        const isActive = currentChatType === 'friend' && selectedFriendId === u.id;
+        item.className = 'user-item' + (isActive ? ' active' : '');
+        item.innerHTML = `
+          <div class="avatar-wrapper">
+            <img src="${u.profilePicture || 'https://via.placeholder.com/40'}" alt="Avatar">
+            <span class="status-dot ${u.isOnline ? 'online' : 'offline'}"></span>
+          </div>
+          <div class="user-meta">
+            <div class="u-name">${escapeHtml(u.fullName)}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${u.isOnline ? 'Online' : 'Offline'}</div>
+          </div>
+        `;
+
+        // Clicking ANY user immediately opens 1v1 chat with them
+        item.onclick = () => selectFriend(u);
+
+        if (isFriend) {
+          friendsListEl.appendChild(item);
+        } else {
+          const isPendingSent = sentRequestReceiverIds.has(u.id);
+          const addBtn = document.createElement('button');
+          addBtn.className = 'btn-action-small';
+
+          if (isPendingSent) {
+            addBtn.innerText = 'Pending';
+            addBtn.disabled = true;
+            addBtn.style.background = '#475569';
+            addBtn.style.opacity = '0.85';
+            addBtn.style.cursor = 'default';
+            addBtn.title = 'Friend request sent (awaiting acceptance)';
+          } else {
+            addBtn.innerText = '+ Add';
+            addBtn.title = 'Send friend request';
+            addBtn.onclick = async (e) => {
+              e.stopPropagation();
+              try {
+                await fetch(`${API_BASE}/api/account/sendfriendrequest`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ senderId: currentUser.id, receiverId: u.id })
+                });
+                sentRequestReceiverIds.add(u.id);
+                showToast('Friend request sent to ' + u.fullName);
+                renderUsers();
+              } catch (err) {
+                showToast('Error sending friend request');
+              }
+            };
+          }
+
+          item.appendChild(addBtn);
+          otherListEl.appendChild(item);
+        }
+      });
+    }
+
+    function selectFriend(friend) {
+      if (typeof saveCurrentRoomCanvas === 'function') {
+        saveCurrentRoomCanvas();
+      }
+      currentChatType = 'friend';
+      selectedFriendId = friend.id;
+      selectedFriendObj = friend;
+      selectedGroupId = null;
+      selectedGroupObj = null;
+
+      document.body.classList.add('chat-open');
+      document.getElementById('chatHeader').classList.remove('hidden');
+      document.getElementById('chatInputBar').classList.remove('hidden');
+      document.getElementById('activeChatAvatar').src = friend.profilePicture || 'https://via.placeholder.com/44';
+      document.getElementById('activeChatName').innerText = friend.fullName;
+      const statusEl = document.getElementById('activeChatStatus');
+      statusEl.innerText = friend.isOnline ? 'Online' : 'Offline';
+      statusEl.style.cursor = 'default';
+      statusEl.onclick = null;
+
+      document.getElementById('groupHeaderActions').classList.add('hidden');
+
+      renderGroups();
+      renderUsers();
+
+      if (typeof switchRoomCanvas === 'function') {
+        switchRoomCanvas();
+      }
+
+      document.getElementById('chatMessages').innerHTML = '';
+      hub.invoke('LoadMessages', friend.id, 1);
+    }
+
+    document.getElementById('btnMobileBack').onclick = () => {
+      document.body.classList.remove('chat-open');
+    };
+
+    // ============================================
+    // CHAT MESSAGING
+    // ============================================
+    function renderMessages(messages) {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      if (messages) {
+        messages.forEach(appendMessage);
+      }
+    }
+
+    function appendMessage(msg) {
+      const container = document.getElementById('chatMessages');
+      const bubble = document.createElement('div');
+      const isMe = msg.senderId === currentUser.id || msg.senderId === currentUser.userName;
+      bubble.className = 'message-bubble ' + (isMe ? 'me' : 'other');
+
+      let contentHtml = '';
+      // Group Chat: Show sender name if it's someone else
+      if (currentChatType === 'group' && !isMe && msg.senderName) {
+        const color = stringToColor(msg.senderName);
+        contentHtml += `<div class="group-msg-sender" style="color:${color};">${escapeHtml(msg.senderName)}</div>`;
+      }
+
+      // Check if message content is an image or regular text
+      if (msg.content && (msg.content.startsWith('data:image/') || (msg.content.startsWith('http') && (msg.content.includes('/uploads/') || msg.content.includes('discord'))))) {
+        contentHtml += `<div>Shared a drawing:</div><img src="${msg.content}" class="chat-drawing-img" alt="Drawing">`;
+      } else {
+        contentHtml += `<div>${escapeHtml(msg.content)}</div>`;
+      }
+
+      bubble.innerHTML = contentHtml;
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (currentChatType === 'group' && selectedGroupId) {
+        await hub.invoke('SendGroupMessage', { groupId: selectedGroupId, content: text });
+        appendMessage({ senderId: currentUser.id, senderName: currentUser.fullName, groupId: selectedGroupId, content: text });
+        input.value = '';
+      } else if (selectedFriendId) {
+        const msg = { receiverId: selectedFriendId, content: text };
+        await hub.invoke('SendMessage', msg);
+        appendMessage({ senderId: currentUser.id, content: text });
+        input.value = '';
+      }
+    }
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('messageInput').onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      } else if (currentChatType === 'friend' && selectedFriendObj) {
+        hub.invoke('NotifyTyping', selectedFriendObj.userName);
+      }
+    };
+
+    // Auto-login if token stored
+    if (token) {
+      initApp();
+    }
+
+    // ==============================================================
+    // ROOM-ISOLATED LIVE COLLABORATIVE DRAWING CANVAS MODULE
+    // (Full-page big live canvas with strict room state isolation)
+    // ==============================================================
+    let canvas, ctx;
+    let isDrawing = false;
+    let currentTool = 'brush'; // 'brush', 'eraser', 'line', 'rectangle', 'circle'
+    let currentColor = '#ffffff';
+    let currentStrokeWidth = 4;
+    let startX = 0, startY = 0;
+    let lastNormX = 0, lastNormY = 0;
+    let history = [];
+    let redoStack = [];
+    const MAX_HISTORY = 40;
+    let isCanvasOpen = false;
+    const remoteCursors = {}; // senderId -> element
+
+    // Room-specific canvas histories: { [roomKey]: { history: ImageData[], redoStack: ImageData[] } }
+    const canvasRooms = {};
+
+    function getRoomKey() {
+      if (currentChatType === 'group' && selectedGroupId) {
+        return 'group_' + selectedGroupId;
+      }
+      if (selectedFriendId) {
+        return 'friend_' + selectedFriendId;
+      }
+      return null;
+    }
+
+    function saveCurrentRoomCanvas() {
+      const key = getRoomKey();
+      if (!key || !canvas || canvas.width === 0) return;
+      try {
+        canvasRooms[key] = {
+          history: [...history],
+          redoStack: [...redoStack]
+        };
+      } catch (e) {
+        console.warn('saveCurrentRoomCanvas error:', e);
+      }
+    }
+
+    function switchRoomCanvas() {
+      const key = getRoomKey();
+      const titleEl = document.getElementById('canvasRoomTitle');
+      const subtitleEl = document.getElementById('canvasRoomSubtitle');
+
+      if (currentChatType === 'group' && selectedGroupObj) {
+        if (titleEl) titleEl.innerText = selectedGroupObj.name || 'Group Canvas';
+        const count = (selectedGroupObj.memberIds && selectedGroupObj.memberIds.length) || 1;
+        if (subtitleEl) subtitleEl.innerText = `👥 Group Room • ${count} member${count > 1 ? 's' : ''}`;
+      } else if (selectedFriendObj) {
+        if (titleEl) titleEl.innerText = selectedFriendObj.fullName || 'Collaborative Canvas';
+        if (subtitleEl) subtitleEl.innerText = `🎨 1-on-1 Live Canvas with @${selectedFriendObj.userName}`;
+      } else {
+        if (titleEl) titleEl.innerText = 'Collaborative Canvas';
+        if (subtitleEl) subtitleEl.innerText = 'Real-time Multi-User Sync';
+      }
+
+      if (!canvas || !ctx) return;
+
+      if (key && canvasRooms[key] && canvasRooms[key].history && canvasRooms[key].history.length > 0) {
+        history = [...canvasRooms[key].history];
+        redoStack = [...(canvasRooms[key].redoStack || [])];
+        const lastSnapshot = history[history.length - 1];
+        try {
+          ctx.putImageData(lastSnapshot, 0, 0);
+        } catch (e) {
+          clearCanvasLocal();
+          saveHistory();
+        }
+      } else {
+        history = [];
+        redoStack = [];
+        clearCanvasLocal();
+        saveHistory();
+      }
+    }
+
+    function applyRemoteStrokeToRoom(key, strokeData) {
+      if (!key) return;
+      if (!canvasRooms[key]) {
+        canvasRooms[key] = { history: [], redoStack: [] };
+      }
+      if (!canvasRooms[key].offscreenCanvas) {
+        const off = document.createElement('canvas');
+        off.width = (canvas && canvas.width > 0) ? canvas.width : 1600;
+        off.height = (canvas && canvas.height > 0) ? canvas.height : 1000;
+        const offCtx = off.getContext('2d');
+        if (canvasRooms[key].history && canvasRooms[key].history.length > 0) {
+          try {
+            offCtx.putImageData(canvasRooms[key].history[canvasRooms[key].history.length - 1], 0, 0);
+          } catch (e) {
+            offCtx.fillStyle = '#0f172a';
+            offCtx.fillRect(0, 0, off.width, off.height);
+          }
+        } else {
+          offCtx.fillStyle = '#0f172a';
+          offCtx.fillRect(0, 0, off.width, off.height);
+        }
+        canvasRooms[key].offscreenCanvas = off;
+        canvasRooms[key].offscreenCtx = offCtx;
+      }
+
+      const offCanvas = canvasRooms[key].offscreenCanvas;
+      const offCtx = canvasRooms[key].offscreenCtx;
+      drawStrokeOnTarget(offCtx, offCanvas.width, offCanvas.height, strokeData);
+      const snapshot = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+      canvasRooms[key].history.push(snapshot);
+      if (canvasRooms[key].history.length > MAX_HISTORY) {
+        canvasRooms[key].history.shift();
+      }
+    }
+
+    function drawStrokeOnTarget(targetCtx, width, height, data) {
+      if (!targetCtx) return;
+      const fromX = data.fromX * width;
+      const fromY = data.fromY * height;
+      const toX = data.toX * width;
+      const toY = data.toY * height;
+
+      if (data.tool === 'eraser') {
+        const eraseSize = (data.width || 12) * 3;
+        targetCtx.fillStyle = '#0f172a';
+        targetCtx.fillRect(toX - eraseSize / 2, toY - eraseSize / 2, eraseSize, eraseSize);
+      } else if (data.tool === 'line' || data.tool === 'rectangle' || data.tool === 'circle') {
+        renderShape(targetCtx, data.tool, fromX, fromY, toX, toY, data.color || '#fff', data.width || 4);
+      } else {
+        targetCtx.beginPath();
+        targetCtx.moveTo(fromX, fromY);
+        targetCtx.lineTo(toX, toY);
+        targetCtx.strokeStyle = data.color || '#fff';
+        targetCtx.lineWidth = data.width || 4;
+        targetCtx.lineCap = 'round';
+        targetCtx.lineJoin = 'round';
+        targetCtx.stroke();
+      }
+    }
+
+    function setupCanvasModule() {
+      canvas = document.getElementById('paintCanvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+
+      const toggleBtn = document.getElementById('btnToggleCanvas');
+      if (toggleBtn) {
+        toggleBtn.onclick = () => {
+          if (!selectedFriendId && !selectedGroupId) {
+            showToast('Select a friend or group to draw together!');
+            return;
+          }
+          openCanvasOverlay();
+          broadcastToggleCanvas(true);
+        };
+      }
+
+      const backBtn = document.getElementById('btnBackFromCanvas');
+      if (backBtn) {
+        backBtn.onclick = () => {
+          closeCanvasOverlay();
+          broadcastToggleCanvas(false);
+        };
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+
+      // Tool selection buttons
+      document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentTool = btn.getAttribute('data-tool');
+        };
+      });
+
+      // Color Palette Swatches
+      document.querySelectorAll('.color-swatch').forEach(swatch => {
+        swatch.onclick = () => {
+          document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+          swatch.classList.add('active');
+          currentColor = swatch.getAttribute('data-color');
+        };
+      });
+
+      // Custom Color Picker
+      const colorPicker = document.getElementById('customColorPicker');
+      if (colorPicker) {
+        colorPicker.oninput = (e) => {
+          currentColor = e.target.value;
+          document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+        };
+      }
+
+      // Stroke Width Slider
+      const sizeSlider = document.getElementById('sizeSlider');
+      const sizeVal = document.getElementById('sizeVal');
+      if (sizeSlider && sizeVal) {
+        sizeSlider.oninput = (e) => {
+          currentStrokeWidth = parseInt(e.target.value);
+          sizeVal.innerText = currentStrokeWidth + 'px';
+        };
+      }
+
+      // Undo / Redo / Clear / Export
+      const undoBtn = document.getElementById('btnCanvasUndo');
+      if (undoBtn) undoBtn.onclick = undoCanvas;
+
+      const redoBtn = document.getElementById('btnCanvasRedo');
+      if (redoBtn) redoBtn.onclick = redoCanvas;
+
+      const clearBtn = document.getElementById('btnCanvasClear');
+      if (clearBtn) {
+        clearBtn.onclick = () => {
+          clearCanvasLocal();
+          saveHistory();
+          broadcastClear();
+        };
+      }
+
+      const exportBtn = document.getElementById('btnCanvasSavePng');
+      if (exportBtn) {
+        exportBtn.onclick = () => {
+          if (!canvas) return;
+          const a = document.createElement('a');
+          a.download = `iris-canvas-${Date.now()}.png`;
+          a.href = canvas.toDataURL('image/png');
+          a.click();
+          showToast('💾 Canvas exported as PNG image!');
+        };
+      }
+
+      // Send Canvas Drawing Directly into Active Chat
+      const sendDrawingBtn = document.getElementById('btnCanvasSendChat');
+      if (sendDrawingBtn) {
+        sendDrawingBtn.onclick = async () => {
+          if (!canvas) return;
+          const dataUrl = canvas.toDataURL('image/png');
+          if (currentChatType === 'group' && selectedGroupId) {
+            await hub.invoke('SendGroupMessage', { groupId: selectedGroupId, content: dataUrl });
+            appendMessage({ senderId: currentUser.id, senderName: currentUser.fullName, groupId: selectedGroupId, content: dataUrl });
+            showToast('🎨 Group drawing shared in chat!');
+          } else if (selectedFriendId) {
+            const msg = { receiverId: selectedFriendId, content: dataUrl };
+            await hub.invoke('SendMessage', msg);
+            appendMessage({ senderId: currentUser.id, content: dataUrl });
+            showToast('🎨 Drawing shared in chat!');
+          } else {
+            showToast('Select a chat to share this drawing');
+          }
+        };
+      }
+
+      // Modern Unified Pointer Events (Touch, Stylus, Apple Pencil & Mouse)
+      if (window.PointerEvent) {
+        canvas.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+          startPaint(e);
+        });
+        canvas.addEventListener('pointermove', (e) => {
+          e.preventDefault();
+          drawPaint(e);
+        });
+        canvas.addEventListener('pointerup', (e) => {
+          e.preventDefault();
+          try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+          stopPaint(e);
+        });
+        canvas.addEventListener('pointercancel', (e) => {
+          e.preventDefault();
+          try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+          stopPaint(e);
+        });
+      } else {
+        // Fallback for older mobile touch devices
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPaint(e); }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawPaint(e); }, { passive: false });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); stopPaint(e); }, { passive: false });
+        canvas.addEventListener('touchcancel', (e) => { e.preventDefault(); stopPaint(e); }, { passive: false });
+
+        canvas.addEventListener('mousedown', startPaint);
+        canvas.addEventListener('mousemove', drawPaint);
+        canvas.addEventListener('mouseup', stopPaint);
+        canvas.addEventListener('mouseleave', stopPaint);
+      }
+    }
+
+    function openCanvasOverlay() {
+      const page = document.getElementById('pageCanvas');
+      if (!page) return;
+      page.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      isCanvasOpen = true;
+      switchRoomCanvas();
+      requestAnimationFrame(resizeCanvas);
+      setTimeout(resizeCanvas, 40);
+      setTimeout(resizeCanvas, 150);
+    }
+
+    function closeCanvasOverlay() {
+      const page = document.getElementById('pageCanvas');
+      if (!page) return;
+      page.classList.add('hidden');
+      document.body.style.overflow = '';
+      isCanvasOpen = false;
+      saveCurrentRoomCanvas();
+    }
+
+    function broadcastToggleCanvas(isOpen) {
+      if (!hub || hub.state !== signalR.HubConnectionState.Connected) return;
+      if (currentChatType === 'group' && selectedGroupId) {
+        hub.invoke('ToggleGroupCanvas', {
+          groupId: selectedGroupId,
+          isOpen: isOpen,
+          senderName: currentUser.fullName
+        });
+      } else if (selectedFriendId) {
+        hub.invoke('ToggleCanvas', { receiverId: selectedFriendId, isOpen: isOpen });
+      }
+    }
+
+    function broadcastClear() {
+      if (!hub || hub.state !== signalR.HubConnectionState.Connected) return;
+      if (currentChatType === 'group' && selectedGroupId) {
+        hub.invoke('SendGroupCanvasClear', {
+          groupId: selectedGroupId,
+          senderName: currentUser.fullName
+        });
+      } else if (selectedFriendId) {
+        hub.invoke('SendCanvasClear', { receiverId: selectedFriendId });
+      }
+    }
+
+    function resizeCanvas() {
+      if (!canvas || !canvas.parentElement) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      const newWidth = Math.floor(rect.width);
+      const newHeight = Math.floor(rect.height);
+
+      if (canvas.width === newWidth && canvas.height === newHeight) return;
+
+      // Preserve drawing content across resize
+      let prevContent = null;
+      if (canvas.width > 0 && canvas.height > 0) {
+        prevContent = document.createElement('canvas');
+        prevContent.width = canvas.width;
+        prevContent.height = canvas.height;
+        prevContent.getContext('2d').drawImage(canvas, 0, 0);
+      }
+
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+
+      if (prevContent) {
+        ctx.drawImage(prevContent, 0, 0, canvas.width, canvas.height);
+      } else if (history.length > 0) {
+        redrawFromHistory();
+      } else {
+        clearCanvasLocal();
+        saveHistory();
+      }
+    }
+
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
+
+    function saveHistory() {
+      if (!canvas || canvas.width === 0) return;
+      if (history.length >= MAX_HISTORY) {
+        history.shift();
+      }
+      history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      redoStack = [];
+      saveCurrentRoomCanvas();
+    }
+
+    function undoCanvas() {
+      if (history.length > 1) {
+        redoStack.push(history.pop());
+        const previousState = history[history.length - 1];
+        ctx.putImageData(previousState, 0, 0);
+        saveCurrentRoomCanvas();
+      }
+    }
+
+    function redoCanvas() {
+      if (redoStack.length > 0) {
+        const nextState = redoStack.pop();
+        history.push(nextState);
+        ctx.putImageData(nextState, 0, 0);
+        saveCurrentRoomCanvas();
+      }
+    }
+
+    function clearCanvasLocal() {
+      if (!ctx || !canvas) return;
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function redrawFromHistory() {
+      if (history.length > 0 && ctx) {
+        ctx.putImageData(history[history.length - 1], 0, 0);
+      }
+    }
+
+    function getCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.clientX !== undefined && e.clientX !== null && !isNaN(e.clientX)) {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      } else if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else {
+        clientX = rect.left;
+        clientY = rect.top;
+      }
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const w = canvas.width || rect.width || 1;
+      const h = canvas.height || rect.height || 1;
+      return {
+        x: Math.max(0, Math.min(w, x)),
+        y: Math.max(0, Math.min(h, y)),
+        normX: Math.max(0, Math.min(1, x / w)),
+        normY: Math.max(0, Math.min(1, y / h))
+      };
+    }
+
+    function startPaint(e) {
+      isDrawing = true;
+      const pos = getCoords(e);
+      startX = pos.x;
+      startY = pos.y;
+      lastNormX = pos.normX;
+      lastNormY = pos.normY;
+
+      saveHistory();
+
+      if (currentTool === 'brush') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+      }
+    }
+
+    let cursorThrottle = 0;
+
+    function drawPaint(e) {
+      const pos = getCoords(e);
+
+      // Throttled cursor broadcast for multi-user collaboration
+      const now = Date.now();
+      if (now - cursorThrottle > 50 && hub && hub.state === signalR.HubConnectionState.Connected) {
+        cursorThrottle = now;
+        if (currentChatType === 'group' && selectedGroupId) {
+          hub.invoke('SendGroupCanvasCursor', {
+            groupId: selectedGroupId,
+            x: pos.normX,
+            y: pos.normY,
+            senderId: currentUser.id,
+            senderName: currentUser.fullName
+          });
+        } else if (selectedFriendId) {
+          hub.invoke('SendCanvasCursor', {
+            receiverId: selectedFriendId,
+            x: pos.normX,
+            y: pos.normY
+          });
+        }
+      }
+
+      if (!isDrawing) return;
+
+      const curX = pos.x;
+      const curY = pos.y;
+
+      if (currentTool === 'brush') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(curX, curY);
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = currentStrokeWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        const strokePayload = {
+          fromX: lastNormX,
+          fromY: lastNormY,
+          toX: pos.normX,
+          toY: pos.normY,
+          color: currentColor,
+          width: currentStrokeWidth,
+          tool: 'brush'
+        };
+
+        if (currentChatType === 'group' && selectedGroupId) {
+          strokePayload.groupId = selectedGroupId;
+          hub.invoke('SendGroupCanvasDraw', strokePayload);
+        } else if (selectedFriendId) {
+          strokePayload.receiverId = selectedFriendId;
+          hub.invoke('SendCanvasDraw', strokePayload);
+        }
+
+        startX = curX;
+        startY = curY;
+        lastNormX = pos.normX;
+        lastNormY = pos.normY;
+      } else if (currentTool === 'eraser') {
+        const eraseSize = currentStrokeWidth * 3;
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(curX - eraseSize / 2, curY - eraseSize / 2, eraseSize, eraseSize);
+
+        const erasePayload = {
+          fromX: lastNormX,
+          fromY: lastNormY,
+          toX: pos.normX,
+          toY: pos.normY,
+          color: '#0f172a',
+          width: currentStrokeWidth,
+          tool: 'eraser'
+        };
+
+        if (currentChatType === 'group' && selectedGroupId) {
+          erasePayload.groupId = selectedGroupId;
+          hub.invoke('SendGroupCanvasDraw', erasePayload);
+        } else if (selectedFriendId) {
+          erasePayload.receiverId = selectedFriendId;
+          hub.invoke('SendCanvasDraw', erasePayload);
+        }
+
+        startX = curX;
+        startY = curY;
+        lastNormX = pos.normX;
+        lastNormY = pos.normY;
+      } else {
+        // Preview geometric shapes
+        if (history.length > 0) {
+          ctx.putImageData(history[history.length - 1], 0, 0);
+        }
+        renderShape(ctx, currentTool, startX, startY, curX, curY, currentColor, currentStrokeWidth);
+      }
+    }
+
+    function stopPaint(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+
+      if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+        const pos = getCoords(e || { clientX: startX, clientY: startY });
+        if (history.length > 0) {
+          ctx.putImageData(history[history.length - 1], 0, 0);
+        }
+        renderShape(ctx, currentTool, startX, startY, pos.x, pos.y, currentColor, currentStrokeWidth);
+
+        const shapePayload = {
+          fromX: lastNormX,
+          fromY: lastNormY,
+          toX: pos.normX,
+          toY: pos.normY,
+          color: currentColor,
+          width: currentStrokeWidth,
+          tool: currentTool
+        };
+
+        if (currentChatType === 'group' && selectedGroupId) {
+          shapePayload.groupId = selectedGroupId;
+          hub.invoke('SendGroupCanvasDraw', shapePayload);
+        } else if (selectedFriendId) {
+          shapePayload.receiverId = selectedFriendId;
+          hub.invoke('SendCanvasDraw', shapePayload);
+        }
+      }
+
+      saveHistory();
+    }
+
+    function renderShape(targetCtx, tool, fromX, fromY, toX, toY, color, width) {
+      targetCtx.strokeStyle = color;
+      targetCtx.lineWidth = width;
+      targetCtx.lineCap = 'round';
+      targetCtx.lineJoin = 'round';
+
+      if (tool === 'line') {
+        targetCtx.beginPath();
+        targetCtx.moveTo(fromX, fromY);
+        targetCtx.lineTo(toX, toY);
+        targetCtx.stroke();
+      } else if (tool === 'rectangle') {
+        targetCtx.strokeRect(fromX, fromY, toX - fromX, toY - fromY);
+      } else if (tool === 'circle') {
+        const radius = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+        targetCtx.beginPath();
+        targetCtx.arc(fromX, fromY, radius, 0, 2 * Math.PI);
+        targetCtx.stroke();
+      }
+    }
+
+    function drawRemoteStroke(data) {
+      if (!canvas || !ctx) return;
+      drawStrokeOnTarget(ctx, canvas.width, canvas.height, data);
+    }
+
+    function updateRemoteCursorPosition(data) {
+      const container = document.getElementById('canvasViewport');
+      if (!container || !canvas) return;
+
+      const cursorId = data.senderId || 'peer';
+      let badge = remoteCursors[cursorId];
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'remote-cursor';
+        const userColor = stringToColor(data.senderName || cursorId);
+        badge.innerHTML = `
+          <div class="remote-cursor-dot" style="background:${userColor}; box-shadow:0 0 8px ${userColor};"></div>
+          <div class="remote-cursor-label" style="background:${userColor};">${escapeHtml(data.senderName || 'Member')}</div>
+        `;
+        container.appendChild(badge);
+        remoteCursors[cursorId] = badge;
+      }
+
+      const curX = data.x * canvas.width;
+      const curY = data.y * canvas.height;
+      badge.style.left = `${curX}px`;
+      badge.style.top = `${curY}px`;
+      badge.querySelector('.remote-cursor-label').innerText = data.senderName || (selectedFriendObj ? selectedFriendObj.fullName : 'Member');
+      badge.classList.remove('hidden');
+
+      clearTimeout(badge.hideTimer);
+      badge.hideTimer = setTimeout(() => {
+        badge.classList.add('hidden');
+      }, 3000);
+    }
+
+    // ==============================================================
+    // DEDICATED FULL-PAGE IRIS AI ASSISTANT MODULE
+    // ==============================================================
+    let aiChatHistory = [];
+    let isAiResponding = false;
+
+    function setupAiAssistantModule() {
+      const portalBtn = document.getElementById('btnNavAiAssistant');
+      if (portalBtn) portalBtn.onclick = openAiAssistantPage;
+
+      const backBtn = document.getElementById('btnBackFromAi');
+      if (backBtn) backBtn.onclick = closeAiAssistantPage;
+
+      const clearBtn = document.getElementById('btnClearAiChat');
+      if (clearBtn) clearBtn.onclick = clearAiChat;
+
+      const sendBtn = document.getElementById('btnAiChatSend');
+      if (sendBtn) sendBtn.onclick = handleAiSend;
+
+      const input = document.getElementById('aiChatInput');
+      if (input) {
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleAiSend();
+          }
+        };
+      }
+
+      // Starter prompt chips
+      document.querySelectorAll('.ai-prompt-chip').forEach(chip => {
+        chip.onclick = () => {
+          const prompt = chip.getAttribute('data-prompt');
+          if (prompt && input) {
+            input.value = prompt;
+            handleAiSend();
+          }
+        };
+      });
+    }
+
+    function openAiAssistantPage() {
+      const page = document.getElementById('pageAiAssistant');
+      if (page) {
+        page.classList.remove('hidden');
+        const input = document.getElementById('aiChatInput');
+        if (input) setTimeout(() => input.focus(), 100);
+      }
+    }
+
+    function closeAiAssistantPage() {
+      const page = document.getElementById('pageAiAssistant');
+      if (page) page.classList.add('hidden');
+    }
+
+    function clearAiChat() {
+      aiChatHistory = [];
+      const container = document.getElementById('aiChatMessages');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="ai-welcome-card" id="aiWelcomeCard">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✨</div>
+          <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.4rem; color:#fff;">Welcome to IRIS AI Assistant</h2>
+          <p style="color: var(--text-muted); font-size: 0.92rem; max-width: 540px; margin: 0 auto 1.5rem;">
+            Ask coding questions, brainstorm collaborative architecture, draft design specs, or get intelligent assistance with instant responses.
+          </p>
+          <div class="ai-starter-prompts">
+            <button class="ai-prompt-chip" data-prompt="Explain how WebSocket and SignalR protocols deliver real-time messages and state synchronization.">
+              ⚡ <strong>SignalR & WebSocket</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">How real-time bidirectional events work</span>
+            </button>
+            <button class="ai-prompt-chip" data-prompt="Suggest a modern, ergonomic dark-mode palette and typography pairing for a collaboration app.">
+              🎨 <strong>Dark Mode Palettes</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Design tokens & color contrast</span>
+            </button>
+            <button class="ai-prompt-chip" data-prompt="Give me 5 creative collaborative features to add to a chat and live canvas application.">
+              💡 <strong>Feature Ideas</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Brainstorm next-gen collaborative tools</span>
+            </button>
+            <button class="ai-prompt-chip" data-prompt="Help me write clean Java Spring Boot code for caching and optimistic locking.">
+              🚀 <strong>Spring Boot Patterns</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Concurrency, caching & clean architecture</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Re-bind starter prompts
+      document.querySelectorAll('.ai-prompt-chip').forEach(chip => {
+        chip.onclick = () => {
+          const prompt = chip.getAttribute('data-prompt');
+          const input = document.getElementById('aiChatInput');
+          if (prompt && input) {
+            input.value = prompt;
+            handleAiSend();
+          }
+        };
+      });
+      showToast('AI chat history cleared');
+    }
+
+    async function handleAiSend() {
+      if (isAiResponding) return;
+      const input = document.getElementById('aiChatInput');
+      if (!input) return;
+      const userText = input.value.trim();
+      if (!userText) return;
+
+      input.value = '';
+      const welcomeCard = document.getElementById('aiWelcomeCard');
+      if (welcomeCard) welcomeCard.remove();
+
+      appendAiMessage('user', userText);
+
+      isAiResponding = true;
+      const indicatorId = showAiThinkingIndicator();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            message: userText,
+            history: aiChatHistory
+          })
+        });
+
+        const data = await res.json();
+        removeAiIndicator(indicatorId);
+
+        if (data.isSuccess && data.data) {
+          const reply = data.data.reply || '';
+          const provider = data.data.provider || 'IRIS AI Assistant';
+          appendAiMessage('assistant', reply, provider);
+          aiChatHistory.push({ role: 'user', content: userText });
+          aiChatHistory.push({ role: 'assistant', content: reply });
+        } else {
+          appendAiMessage('assistant', `⚠️ Sorry, I could not complete your request: ${data.error || 'Server error'}`);
+        }
+      } catch (err) {
+        removeAiIndicator(indicatorId);
+        appendAiMessage('assistant', `⚠️ Connection error: ${err.message}`);
+      } finally {
+        isAiResponding = false;
+      }
+    }
+
+    function appendAiMessage(role, text, provider) {
+      const container = document.getElementById('aiChatMessages');
+      if (!container) return;
+
+      const bubbleWrap = document.createElement('div');
+      bubbleWrap.className = `ai-message-row ${role === 'user' ? 'user-row' : 'assistant-row'}`;
+
+      if (role === 'user') {
+        bubbleWrap.innerHTML = `
+          <div class="ai-msg-bubble user">
+            ${escapeHtml(text)}
+          </div>
+          <div class="ai-avatar user-avatar">You</div>
+        `;
+      } else {
+        bubbleWrap.innerHTML = `
+          <div class="ai-avatar assistant-avatar">🤖</div>
+          <div class="ai-msg-bubble assistant">
+            <div class="ai-provider-badge">⚡ ${escapeHtml(provider || 'IRIS AI Assistant')}</div>
+            <div class="ai-text-content">${renderMarkdownToHtml(text)}</div>
+          </div>
+        `;
+      }
+
+      container.appendChild(bubbleWrap);
+      container.scrollTop = container.scrollHeight;
+
+      // Wire copy code buttons
+      bubbleWrap.querySelectorAll('.btn-copy-code').forEach(btn => {
+        btn.onclick = () => {
+          const codeEl = btn.parentElement.querySelector('code');
+          if (codeEl) {
+            navigator.clipboard.writeText(codeEl.innerText).then(() => {
+              btn.innerText = '✅ Copied!';
+              setTimeout(() => { btn.innerText = '📋 Copy'; }, 2000);
+            });
+          }
+        };
+      });
+    }
+
+    function showAiThinkingIndicator() {
+      const container = document.getElementById('aiChatMessages');
+      if (!container) return null;
+      const id = 'ai-indicator-' + Date.now();
+      const wrap = document.createElement('div');
+      wrap.id = id;
+      wrap.className = 'ai-message-row assistant-row';
+      wrap.innerHTML = `
+        <div class="ai-avatar assistant-avatar">🤖</div>
+        <div class="ai-msg-bubble assistant" style="display:flex; align-items:center; gap:0.5rem; padding:0.85rem 1.25rem;">
+          <span style="font-size:0.85rem; color:var(--text-muted);">IRIS AI is thinking...</span>
+          <div class="ai-thinking-dots"><span></span><span></span><span></span></div>
+        </div>
+      `;
+      container.appendChild(wrap);
+      container.scrollTop = container.scrollHeight;
+      return id;
+    }
+
+    function removeAiIndicator(id) {
+      if (!id) return;
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    function renderMarkdownToHtml(md) {
+      if (!md) return '';
+
+      // Escape raw HTML first
+      let html = md
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // Code blocks ```lang\ncode\n```
+      html = html.replace(/```([a-zA-Z0-9_\-\.]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const langLabel = lang ? lang.toUpperCase() : 'CODE';
+        return `
+          <div class="code-block-box">
+            <div class="code-block-header">
+              <span>${langLabel}</span>
+              <button class="btn-copy-code" type="button">📋 Copy</button>
+            </div>
+            <pre><code>${code.trim()}</code></pre>
+          </div>
+        `;
+      });
+
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+      // Headings
+      html = html.replace(/^### (.*$)/gim, '<h4 style="margin:0.75rem 0 0.3rem; color:#fff; font-size:1.05rem;">$1</h4>');
+      html = html.replace(/^## (.*$)/gim, '<h3 style="margin:0.85rem 0 0.4rem; color:#fff; font-size:1.15rem;">$1</h3>');
+      html = html.replace(/^# (.*$)/gim, '<h2 style="margin:1rem 0 0.5rem; color:#fff; font-size:1.3rem;">$1</h2>');
+
+      // Bold & Italic
+      html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+      html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+      // Bullet lists
+      html = html.replace(/^\s*[-*]\s+(.*$)/gim, '<li style="margin-left:1.25rem;">$1</li>');
+      html = html.replace(/(<li.*<\/li>)/gim, '<ul style="margin:0.4rem 0;">$1</ul>');
+      html = html.replace(/<\/ul>\s*<ul[^>]*>/gim, '');
+
+      // Line breaks
+      html = html.replace(/\n\n+/g, '<br><br>');
+      html = html.replace(/\n/g, '<br>');
+
+      return html;
+    }
+  </script>
+</body>
+</html>
