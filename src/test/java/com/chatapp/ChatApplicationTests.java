@@ -26,6 +26,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SuppressWarnings("null")
 class ChatApplicationTests {
 
     @LocalServerPort
@@ -94,6 +95,7 @@ class ChatApplicationTests {
         );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertTrue(response.getBody().isSuccess());
         assertNotNull(response.getBody().getData());
 
@@ -165,6 +167,7 @@ class ChatApplicationTests {
         );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertTrue(response.getBody().isSuccess());
         assertNotNull(response.getBody().getData());
         assertTrue(response.getBody().getData().toString().contains("/uploads/") || response.getBody().getData().toString().contains("discord"));
