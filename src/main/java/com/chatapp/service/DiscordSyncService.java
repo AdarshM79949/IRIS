@@ -6,7 +6,6 @@ import com.chatapp.repository.AppUserRepository;
 import com.chatapp.repository.ChatGroupRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.*;
 
 @Service
+@SuppressWarnings("null")
 public class DiscordSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(DiscordSyncService.class);

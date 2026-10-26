@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@SuppressWarnings("null")
 public class ChatService {
 
     private final MessageRepository messageRepository;

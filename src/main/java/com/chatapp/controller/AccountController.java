@@ -247,4 +247,11 @@ public class AccountController {
             return ResponseEntity.badRequest().body(ApiResponse.failure("Upload failed: " + e.getMessage()));
         }
     }
+
+    @PostMapping({"/admin/delete-all-users", "/delete-all-users"})
+    public ResponseEntity<ApiResponse<String>> deleteAllUsers() {
+        userRepository.deleteAll();
+        signalRHandler.broadcastOnlineUsersToAll();
+        return ResponseEntity.ok(ApiResponse.success("All users deleted", "Users wiped successfully"));
+    }
 }
