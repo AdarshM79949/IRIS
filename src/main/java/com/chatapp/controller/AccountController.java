@@ -119,12 +119,14 @@ public class AccountController {
     }
 
     @GetMapping("/me")
+    @SuppressWarnings("null")
     public ResponseEntity<ApiResponse<AppUser>> me(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
             return ResponseEntity.status(401).body(ApiResponse.failure("Unauthorized"));
         }
 
-        Optional<AppUser> userOpt = userRepository.findById(principal.getId());
+        String principalId = principal.getId();
+        Optional<AppUser> userOpt = userRepository.findById(principalId);
         if (userOpt.isEmpty()) {
             userOpt = userRepository.findByUserName(principal.getName());
         }
@@ -154,6 +156,7 @@ public class AccountController {
     }
 
     @PostMapping("/sendfriendrequest")
+    @SuppressWarnings("null")
     public ResponseEntity<ApiResponse<String>> sendFriendRequest(@RequestBody AddFriendDto dto) {
         if (dto == null || dto.getSenderId() == null || dto.getReceiverId() == null) {
             return ResponseEntity.badRequest().body(ApiResponse.failure("Invalid Id's details"));
@@ -161,7 +164,9 @@ public class AccountController {
 
         boolean sent = friendRequestService.sendFriendRequest(dto.getSenderId(), dto.getReceiverId());
         if (sent) {
-            String senderName = userRepository.findById(dto.getSenderId()).map(AppUser::getFullName).orElse("Someone");
+            String senderId = dto.getSenderId();
+            Optional<AppUser> senderUserOpt = userRepository.findById(senderId);
+            String senderName = senderUserOpt.map(AppUser::getFullName).orElse("Someone");
             signalRHandler.sendToUser(dto.getReceiverId(), "ReceiveFriendRequest", java.util.Map.of(
                     "senderId", dto.getSenderId(),
                     "senderName", senderName,

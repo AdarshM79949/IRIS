@@ -48,6 +48,7 @@ public class FriendRequestService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public boolean acceptFriendRequest(String senderId, String receiverId) {
         List<FriendsRequest> existing = friendsRequestRepository.findRequestsBetween(senderId, receiverId);
         if (!existing.isEmpty()) {
